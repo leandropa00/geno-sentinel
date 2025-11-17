@@ -23,9 +23,5 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
   migrations: ['dist/infrastructure/persistence/migrations/*.js'],
   migrationsTableName: 'migrations',
   migrationsRun: process.env.RUN_MIGRATIONS === 'true',
-  // Cli configuration (para generar migraciones)
-  cli: {
-    migrationsDir: 'src/infrastructure/persistence/migrations',
-  },
 };
 
