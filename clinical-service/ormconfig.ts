@@ -11,7 +11,9 @@ export default new DataSource({
   username: process.env.DB_USERNAME || 'root',
   password: process.env.DB_PASSWORD || 'password',
   database: process.env.DB_DATABASE || 'clinical_db',
-  entities: ['src/infrastructure/persistence/typeorm/entities/*.entity.ts'],
+  entities: [
+    'src/infrastructure/persistence/typeorm/entities/*.typeorm.entity.ts',
+  ],
   migrations: ['src/infrastructure/persistence/migrations/*.ts'],
   synchronize: false,
   logging: true,
