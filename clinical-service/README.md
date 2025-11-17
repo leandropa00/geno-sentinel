@@ -63,15 +63,63 @@ El servicio utiliza MySQL con TypeORM. Las tablas se crean automáticamente en m
 
 ## Ejecución
 
-### Desarrollo
+### Desarrollo Local
 ```bash
 npm run start:dev
 ```
 
-### Producción
+### Producción Local
 ```bash
 npm run build
 npm run start:prod
+```
+
+## Docker
+
+### Construcción de la imagen
+```bash
+docker build -t clinical-service .
+```
+
+### Ejecución con Docker Compose (recomendado)
+Docker Compose incluye MySQL y el servicio clínico configurados:
+
+```bash
+# Iniciar todos los servicios
+docker-compose up -d
+
+# Ver logs
+docker-compose logs -f clinical-service
+
+# Detener servicios
+docker-compose down
+
+# Detener y eliminar volúmenes
+docker-compose down -v
+```
+
+El servicio estará disponible en `http://localhost:3000` y la documentación Swagger en `http://localhost:3000/api`.
+
+### Desarrollo con Docker
+Para desarrollo con hot-reload:
+
+```bash
+docker build -f Dockerfile.dev -t clinical-service:dev .
+docker run -p 3000:3000 --env-file .env clinical-service:dev
+```
+
+### Variables de entorno en Docker
+Las variables de entorno se pueden configurar en `docker-compose.yml` o mediante un archivo `.env`:
+
+```bash
+# Ejemplo de .env para docker-compose
+DB_HOST=mysql
+DB_PORT=3306
+DB_USERNAME=root
+DB_PASSWORD=rootpassword
+DB_DATABASE=clinical_db
+PORT=3000
+NODE_ENV=production
 ```
 
 ## API Documentation
