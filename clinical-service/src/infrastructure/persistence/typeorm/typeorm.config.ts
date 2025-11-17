@@ -15,7 +15,17 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
     TumorTypeTypeOrmEntity,
     ClinicalRecordTypeOrmEntity,
   ],
-  synchronize: process.env.NODE_ENV !== 'production',
+  // En desarrollo: usar synchronize para desarrollo rápido
+  // En producción: usar migraciones (synchronize: false)
+  synchronize: process.env.NODE_ENV !== 'production' && process.env.USE_MIGRATIONS !== 'true',
   logging: process.env.NODE_ENV === 'development',
+  // Configuración de migraciones
+  migrations: ['dist/infrastructure/persistence/migrations/*.js'],
+  migrationsTableName: 'migrations',
+  migrationsRun: process.env.RUN_MIGRATIONS === 'true',
+  // Cli configuration (para generar migraciones)
+  cli: {
+    migrationsDir: 'src/infrastructure/persistence/migrations',
+  },
 };
 
