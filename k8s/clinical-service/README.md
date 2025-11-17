@@ -13,6 +13,38 @@ Este directorio contiene los manifiestos de Kubernetes para desplegar el servici
 - `mysql-configmap.yaml` - ConfigMap para MySQL
 - `mysql-secret.yaml` - Secret con credenciales de MySQL
 - `mysql-pvc.yaml` - PersistentVolumeClaim para persistencia de datos
+- `Makefile` - Comandos útiles de Kubernetes
+- `kustomization.yaml` - Configuración de Kustomize
+
+## Uso rápido con Makefile
+
+El método más sencillo para gestionar el despliegue es usar el Makefile:
+
+```bash
+# Ver todos los comandos disponibles
+make help
+
+# Desplegar todo
+make deploy
+
+# Ver estado
+make status
+
+# Ver logs
+make logs-service
+make logs-mysql
+
+# Port-forward para acceder al servicio
+make port-forward-service
+
+# Escalar el servicio
+make scale REPLICAS=3
+
+# Reiniciar
+make restart-service
+```
+
+Para ver todos los comandos disponibles, ejecuta `make help`.
 
 ## Despliegue
 
@@ -36,12 +68,18 @@ kubectl create secret generic clinical-mysql-secret \
 
 ### 2. Aplicar los manifiestos
 
-**Opción A: Aplicar todos los recursos:**
+**Opción A: Usar Makefile (recomendado):**
+```bash
+cd k8s/clinical-service
+make deploy
+```
+
+**Opción B: Aplicar todos los recursos con kubectl:**
 ```bash
 kubectl apply -f k8s/clinical-service/
 ```
 
-**Opción B: Aplicar en orden (recomendado):**
+**Opción C: Aplicar en orden manualmente:**
 ```bash
 # 1. Base de datos MySQL
 kubectl apply -f mysql-pvc.yaml
@@ -60,8 +98,23 @@ kubectl apply -f service.yaml
 kubectl apply -f deployment.yaml
 ```
 
+**Opción D: Usar Kustomize:**
+```bash
+kubectl apply -k k8s/clinical-service/
+# O con Makefile:
+make deploy-kustomize
+```
+
 ### 3. Verificar el despliegue
 
+**Con Makefile:**
+```bash
+make status          # Ver estado de todos los recursos
+make logs-service     # Ver logs del servicio
+make logs-mysql       # Ver logs de MySQL
+```
+
+**Con kubectl:**
 ```bash
 # Ver pods
 kubectl get pods -l app=clinical-service
@@ -84,7 +137,13 @@ kubectl get deployment clinical-mysql
 
 El servicio está expuesto como `ClusterIP` por defecto. Para acceder desde fuera del cluster, puedes:
 
-1. **Port-forward (desarrollo):**
+1. **Port-forward (desarrollo) - Con Makefile:**
+```bash
+make port-forward-service
+# Acceder en http://localhost:3000
+```
+
+**O con kubectl:**
 ```bash
 kubectl port-forward svc/clinical-service 3000:3000
 # Acceder en http://localhost:3000
