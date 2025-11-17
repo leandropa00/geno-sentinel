@@ -1,0 +1,25 @@
+{
+	"folders": [
+		{
+			"name": "geno-sentinel",
+			"path": "."
+		},
+		{
+			"name": "k8s",
+			"path": "k8s"
+		},
+		{
+			"name": "api-gateway",
+			"path": "api-gateway"
+		},
+		{
+			"name": "clinical-service",
+			"path": "clinical-service"
+		},
+		{
+			"name": "genomic-service",
+			"path": "genomic-service"
+		}
+	],
+	"settings": {}
+}
