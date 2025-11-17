@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: clinical-mysql-config
+  namespace: default
+  labels:
+    app: clinical-mysql
+data:
+  MYSQL_DATABASE: "clinical_db"
+  MYSQL_USER: "clinical_user"
+
