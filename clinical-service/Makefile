@@ -4,7 +4,7 @@
 
 # Variables
 SERVICE := clinical-service
-COMPOSE_FILE := $(SERVICE)/docker-compose.yml
+COMPOSE_FILE := docker-compose.yml
 IMAGE_NAME := $(SERVICE)
 IMAGE_TAG := latest
 
@@ -24,31 +24,31 @@ help: ## Muestra esta ayuda
 
 dev-build: ## Construye la imagen de desarrollo
 	@echo "$(GREEN)Construyendo imagen de desarrollo...$(NC)"
-	cd $(SERVICE) && docker-compose build
+	docker compose build
 
 dev-up: ## Inicia los contenedores en modo desarrollo
 	@echo "$(GREEN)Iniciando servicios en modo desarrollo...$(NC)"
-	cd $(SERVICE) && docker-compose up -d
+	docker compose up -d
 	@echo "$(GREEN)Servicios iniciados. Ver logs con: make dev-logs$(NC)"
 
 dev-up-build: ## Construye e inicia los contenedores en modo desarrollo
 	@echo "$(GREEN)Construyendo e iniciando servicios en modo desarrollo...$(NC)"
-	cd $(SERVICE) && docker-compose up -d --build
+	docker compose up -d --build
 
 dev-down: ## Detiene los contenedores de desarrollo
 	@echo "$(YELLOW)Deteniendo contenedores de desarrollo...$(NC)"
-	cd $(SERVICE) && docker-compose down
+	docker compose down
 	@echo "$(GREEN)Contenedores detenidos$(NC)"
 
 dev-logs: ## Muestra los logs de desarrollo
 	@echo "$(GREEN)Logs de los servicios de desarrollo:$(NC)"
-	cd $(SERVICE) && docker-compose logs -f
+	docker compose logs -f
 
 dev-restart: dev-down dev-up ## Reinicia los contenedores de desarrollo
 
 dev-clean: dev-down ## Limpia contenedores e imágenes de desarrollo
 	@echo "$(YELLOW)Eliminando contenedores, volúmenes e imágenes de desarrollo...$(NC)"
-	cd $(SERVICE) && docker-compose down -v --rmi local
+	docker compose down -v --rmi local
 	@echo "$(GREEN)Limpieza completada$(NC)"
 
 # ============================================
@@ -57,7 +57,7 @@ dev-clean: dev-down ## Limpia contenedores e imágenes de desarrollo
 
 prod-build: ## Construye la imagen de producción
 	@echo "$(GREEN)Construyendo imagen de producción...$(NC)"
-	cd $(SERVICE) && docker build -f Dockerfile -t $(IMAGE_NAME):$(IMAGE_TAG) .
+	docker build -f Dockerfile -t $(IMAGE_NAME):$(IMAGE_TAG) .
 
 prod-up: ## Inicia el contenedor en modo producción
 	@echo "$(GREEN)Iniciando servicio en modo producción...$(NC)"
