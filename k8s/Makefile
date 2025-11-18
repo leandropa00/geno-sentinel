@@ -1,6 +1,6 @@
 .PHONY: help check-k8s diagnose-k8s setup-minikube-docker deploy deploy-all delete delete-all status status-all \
         logs logs-all port-forward restart restart-all scale wait-all cleanup clinical-service \
-        build-minikube-clinical
+        build-minikube-clinical build-minikube-api-gateway
 
 # Variables
 NAMESPACE := default
@@ -12,6 +12,9 @@ CLINICAL_IMAGE_NAME := clinical-service
 CLINICAL_IMAGE_TAG := latest
 CLINICAL_SERVICE_LABEL := app=clinical-service
 CLINICAL_MYSQL_LABEL := app=clinical-mysql
+API_GATEWAY_DIR := ../api-gateway
+API_GATEWAY_IMAGE_NAME := api-gateway
+API_GATEWAY_IMAGE_TAG := latest
 
 # Colores para output
 GREEN := \033[0;32m
@@ -168,10 +171,18 @@ deploy: check-k8s ## Despliega un servicio específico (uso: make deploy SERVICE
 	@if [ "$(SERVICE)" = "clinical-service" ]; then \
 		$(MAKE) deploy-clinical; \
 	else \
-		if [ "$(SKIP_VALIDATION)" = "true" ]; then \
-			kubectl apply -f $(SERVICE)/ --validate=false; \
+		if [ -f "$(SERVICE)/kustomization.yaml" ]; then \
+			if [ "$(SKIP_VALIDATION)" = "true" ]; then \
+				kubectl apply -k $(SERVICE)/ --validate=false; \
+			else \
+				kubectl apply -k $(SERVICE)/; \
+			fi; \
 		else \
-			kubectl apply -f $(SERVICE)/; \
+			if [ "$(SKIP_VALIDATION)" = "true" ]; then \
+				kubectl apply -f $(SERVICE)/ --validate=false; \
+			else \
+				kubectl apply -f $(SERVICE)/; \
+			fi; \
 		fi; \
 	fi
 	@echo "$(GREEN)Despliegue de $(SERVICE) completado!$(NC)"
@@ -184,10 +195,18 @@ deploy-all: check-k8s ## Despliega todos los servicios disponibles
 			if [ "$$service" = "clinical-service" ]; then \
 				$(MAKE) deploy-clinical || echo "$(YELLOW)Error desplegando $$service$(NC)"; \
 			else \
-				if [ "$(SKIP_VALIDATION)" = "true" ]; then \
-					kubectl apply -f $$service/ --validate=false || echo "$(YELLOW)Error aplicando manifiestos de $$service$(NC)"; \
+				if [ -f "$$service/kustomization.yaml" ]; then \
+					if [ "$(SKIP_VALIDATION)" = "true" ]; then \
+						kubectl apply -k $$service/ --validate=false || echo "$(YELLOW)Error aplicando manifiestos de $$service$(NC)"; \
+					else \
+						kubectl apply -k $$service/ || echo "$(YELLOW)Error aplicando manifiestos de $$service$(NC)"; \
+					fi; \
 				else \
-					kubectl apply -f $$service/ || echo "$(YELLOW)Error aplicando manifiestos de $$service$(NC)"; \
+					if [ "$(SKIP_VALIDATION)" = "true" ]; then \
+						kubectl apply -f $$service/ --validate=false || echo "$(YELLOW)Error aplicando manifiestos de $$service$(NC)"; \
+					else \
+						kubectl apply -f $$service/ || echo "$(YELLOW)Error aplicando manifiestos de $$service$(NC)"; \
+					fi; \
 				fi; \
 			fi; \
 			echo ""; \
@@ -236,7 +255,11 @@ delete: ## Elimina un servicio específico (uso: make delete SERVICE=clinical-se
 	@if [ "$(SERVICE)" = "clinical-service" ]; then \
 		$(MAKE) delete-clinical || true; \
 	else \
-		kubectl delete -f $(SERVICE)/ --ignore-not-found=true; \
+		if [ -f "$(SERVICE)/kustomization.yaml" ]; then \
+			kubectl delete -k $(SERVICE)/ --ignore-not-found=true; \
+		else \
+			kubectl delete -f $(SERVICE)/ --ignore-not-found=true; \
+		fi; \
 	fi
 	@echo "$(GREEN)Eliminación de $(SERVICE) completada!$(NC)"
 
@@ -248,7 +271,11 @@ delete-all: ## Elimina todos los servicios
 			if [ "$$service" = "clinical-service" ]; then \
 				$(MAKE) delete-clinical || true; \
 			else \
-				kubectl delete -f $$service/ --ignore-not-found=true || true; \
+				if [ -f "$$service/kustomization.yaml" ]; then \
+					kubectl delete -k $$service/ --ignore-not-found=true || true; \
+				else \
+					kubectl delete -f $$service/ --ignore-not-found=true || true; \
+				fi; \
 			fi; \
 		fi; \
 	done
@@ -443,6 +470,27 @@ build-minikube-clinical: ## Construye la imagen Docker usando el entorno de Mini
 	@bash -c "eval \$$(minikube -p $(MINIKUBE_PROFILE) docker-env) && \
 		cd $(CLINICAL_SERVICE_DIR) && \
 		docker build -f Dockerfile -t $(CLINICAL_IMAGE_NAME):$(CLINICAL_IMAGE_TAG) ."
+	@echo "$(GREEN)Imagen construida exitosamente en Minikube!$(NC)"
+	@echo "$(CYAN)La imagen está disponible en el cluster de Minikube$(NC)"
+
+build-minikube-api-gateway: ## Construye la imagen Docker del API Gateway usando el entorno de Minikube
+	@if [ ! -d "$(API_GATEWAY_DIR)" ]; then \
+		echo "$(RED)Error: No se encuentra el directorio del servicio en $(API_GATEWAY_DIR)$(NC)"; \
+		exit 1; \
+	fi
+	@if ! command -v minikube >/dev/null 2>&1; then \
+		echo "$(RED)Error: Minikube no está instalado$(NC)"; \
+		exit 1; \
+	fi
+	@if ! minikube status -p $(MINIKUBE_PROFILE) &>/dev/null; then \
+		echo "$(YELLOW)Minikube no está corriendo. Iniciando...$(NC)"; \
+		minikube start -p $(MINIKUBE_PROFILE); \
+	fi
+	@echo "$(GREEN)Construyendo imagen $(API_GATEWAY_IMAGE_NAME):$(API_GATEWAY_IMAGE_TAG) en Minikube...$(NC)"
+	@echo "$(YELLOW)Configurando entorno de Docker de Minikube...$(NC)"
+	@bash -c "eval \$$(minikube -p $(MINIKUBE_PROFILE) docker-env) && \
+		cd $(API_GATEWAY_DIR) && \
+		docker build -f Dockerfile -t $(API_GATEWAY_IMAGE_NAME):$(API_GATEWAY_IMAGE_TAG) ."
 	@echo "$(GREEN)Imagen construida exitosamente en Minikube!$(NC)"
 	@echo "$(CYAN)La imagen está disponible en el cluster de Minikube$(NC)"
 
