@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: default
+  labels:
+    app: api-gateway
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+        version: v1
+    spec:
+      containers:
+      - name: api-gateway
+        image: api-gateway:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        env:
+        - name: SERVER_PORT
+          value: "8080"
+        - name: SPRING_PROFILES_ACTIVE
+          valueFrom:
+            configMapKeyRef:
+              name: api-gateway-config
+              key: SPRING_PROFILES_ACTIVE
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: api-gateway-secret
+              key: JWT_SECRET
+        - name: JWT_EXPIRATION
+          valueFrom:
+            configMapKeyRef:
+              name: api-gateway-config
+              key: JWT_EXPIRATION
+        - name: CLINICAL_SERVICE_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: api-gateway-config
+              key: CLINICAL_SERVICE_HOST
+        - name: CLINICAL_SERVICE_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: api-gateway-config
+              key: CLINICAL_SERVICE_PORT
+        - name: GENOMIC_SERVICE_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: api-gateway-config
+              key: GENOMIC_SERVICE_HOST
+        - name: GENOMIC_SERVICE_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: api-gateway-config
+              key: GENOMIC_SERVICE_PORT
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 40
+          periodSeconds: 30
+          timeoutSeconds: 3
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+            - ALL
+

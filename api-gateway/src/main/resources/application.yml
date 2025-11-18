@@ -1,0 +1,51 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      routes:
+        - id: clinical-service
+          uri: http://${CLINICAL_SERVICE_HOST:clinical-service}:${CLINICAL_SERVICE_PORT:3000}
+          predicates:
+            - Path=/api/clinical/**
+          filters:
+            - StripPrefix=2
+        - id: genomic-service
+          uri: http://${GENOMIC_SERVICE_HOST:genomic-service}:${GENOMIC_SERVICE_PORT:3001}
+          predicates:
+            - Path=/api/genomic/**
+          filters:
+            - StripPrefix=2
+      default-filters:
+        - name: Retry
+          args:
+            retries: 3
+            statuses: BAD_GATEWAY,GATEWAY_TIMEOUT
+            methods: GET,POST,PUT,DELETE
+      discovery:
+        locator:
+          enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+jwt:
+  secret: ${JWT_SECRET:your-256-bit-secret-key-change-in-production-minimum-32-characters}
+  expiration: ${JWT_EXPIRATION:86400000} # 24 hours in milliseconds
+
+logging:
+  level:
+    com.genosentinel: INFO
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.web: DEBUG
+
