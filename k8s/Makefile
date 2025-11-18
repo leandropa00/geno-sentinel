@@ -1,6 +1,6 @@
 .PHONY: help check-k8s diagnose-k8s setup-minikube-docker deploy deploy-all delete delete-all status status-all \
         logs logs-all port-forward restart restart-all scale wait-all cleanup clinical-service \
-        build-minikube-clinical build-minikube-api-gateway
+        build-minikube-clinical build-minikube-api-gateway build-all-minikube build-and-deploy-all
 
 # Variables
 NAMESPACE := default
@@ -449,8 +449,50 @@ cleanup: ## Limpia recursos fallidos de todos los servicios
 	@echo "$(GREEN)Limpieza completada!$(NC)"
 
 # ============================================
-# AYUDA DE SERVICIOS
+# CONSTRUCCIÓN DE IMÁGENES
 # ============================================
+
+build-all-minikube: ## Construye todas las imágenes Docker usando el entorno de Minikube
+	@if ! command -v minikube >/dev/null 2>&1; then \
+		echo "$(RED)Error: Minikube no está instalado$(NC)"; \
+		exit 1; \
+	fi
+	@if ! minikube status -p $(MINIKUBE_PROFILE) &>/dev/null; then \
+		echo "$(YELLOW)Minikube no está corriendo. Iniciando...$(NC)"; \
+		minikube start -p $(MINIKUBE_PROFILE); \
+	fi
+	@if [ ! -d "$(CLINICAL_SERVICE_DIR)" ]; then \
+		echo "$(RED)Error: No se encuentra el directorio del servicio en $(CLINICAL_SERVICE_DIR)$(NC)"; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(API_GATEWAY_DIR)" ]; then \
+		echo "$(RED)Error: No se encuentra el directorio del servicio en $(API_GATEWAY_DIR)$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)=== Construyendo todas las imágenes en Minikube ===$(NC)\n"
+	@echo "$(YELLOW)Configurando entorno de Docker de Minikube...$(NC)"
+	@bash -c "eval \$$(minikube -p $(MINIKUBE_PROFILE) docker-env) && \
+		echo \"$(CYAN)--- Construyendo Clinical Service ---$(NC)\" && \
+		cd $(CLINICAL_SERVICE_DIR) && \
+		docker build -f Dockerfile -t $(CLINICAL_IMAGE_NAME):$(CLINICAL_IMAGE_TAG) . && \
+		echo \"$(GREEN)✓ Clinical Service construido$(NC)\" && \
+		echo \"\" && \
+		echo \"$(CYAN)--- Construyendo API Gateway ---$(NC)\" && \
+		cd $(API_GATEWAY_DIR) && \
+		docker build -f Dockerfile -t $(API_GATEWAY_IMAGE_NAME):$(API_GATEWAY_IMAGE_TAG) . && \
+		echo \"$(GREEN)✓ API Gateway construido$(NC)\""
+	@echo ""
+	@echo "$(GREEN)✓ Todas las imágenes construidas exitosamente!$(NC)"
+
+build-and-deploy-all: check-k8s ## Construye todas las imágenes y despliega toda la infraestructura
+	@echo "$(GREEN)=== Construyendo imágenes y desplegando infraestructura completa ===$(NC)\n"
+	@$(MAKE) build-all-minikube
+	@echo ""
+	@echo "$(GREEN)=== Desplegando toda la infraestructura ===$(NC)\n"
+	@$(MAKE) deploy-all
+	@echo ""
+	@echo "$(GREEN)✓ Proceso completado!$(NC)"
+	@echo "$(CYAN)Usa 'make status-all' para ver el estado de los servicios$(NC)"
 
 build-minikube-clinical: ## Construye la imagen Docker usando el entorno de Minikube
 	@if [ ! -d "$(CLINICAL_SERVICE_DIR)" ]; then \
