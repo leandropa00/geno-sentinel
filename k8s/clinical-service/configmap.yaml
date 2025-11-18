@@ -10,4 +10,5 @@ data:
   DB_HOST: "clinical-mysql"
   DB_PORT: "3306"
   DB_DATABASE: "clinical_db"
+  USE_MIGRATIONS: "false"
 

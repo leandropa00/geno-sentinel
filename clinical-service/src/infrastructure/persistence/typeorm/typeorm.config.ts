@@ -15,9 +15,9 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
     TumorTypeTypeOrmEntity,
     ClinicalRecordTypeOrmEntity,
   ],
-  // En desarrollo: usar synchronize para desarrollo rápido
-  // En producción: usar migraciones (synchronize: false)
-  synchronize: process.env.NODE_ENV !== 'production' && process.env.USE_MIGRATIONS !== 'true',
+  // Usar synchronize para crear tablas automáticamente
+  // Para desactivar, establecer USE_MIGRATIONS=true
+  synchronize: process.env.USE_MIGRATIONS !== 'true',
   logging: process.env.NODE_ENV === 'development',
   // Configuración de migraciones
   migrations: ['dist/infrastructure/persistence/migrations/*.js'],
