@@ -1,0 +1,24 @@
+meta {
+  name: GetByStatus
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{BASE_URL}}/api/clinical/patients/status/:status
+  body: none
+  auth: bearer
+}
+
+params:path {
+  status: Inactivo
+}
+
+auth:bearer {
+  token: {{BEARER_TOKEN}}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

@@ -1,0 +1,34 @@
+meta {
+  name: Update
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{BASE_URL}}/api/clinical/patients/:id
+  body: json
+  auth: bearer
+}
+
+params:path {
+  id: e935c1f3-c1ef-4ad4-8e1b-3963b7f45f3a
+}
+
+auth:bearer {
+  token: {{BEARER_TOKEN}}
+}
+
+body:json {
+  {
+    "firstName": "Juan",
+    "lastName": "Pérez",
+    "birthDate": "1990-01-15",
+    "gender": "M",
+    "status": "Activo"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

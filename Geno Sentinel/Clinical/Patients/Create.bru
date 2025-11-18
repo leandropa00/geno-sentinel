@@ -1,0 +1,30 @@
+meta {
+  name: Create
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{BASE_URL}}/api/clinical/patients
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{BEARER_TOKEN}}
+}
+
+body:json {
+  {
+    "firstName": "Juanito",
+    "lastName": "Alimaña",
+    "birthDate": "1990-01-15",
+    "gender": "M",
+    "status": "Activo"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

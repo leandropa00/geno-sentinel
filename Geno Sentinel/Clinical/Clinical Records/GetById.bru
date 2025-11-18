@@ -1,0 +1,24 @@
+meta {
+  name: GetById
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{BASE_URL}}/api/clinical/clinical-records/:id
+  body: none
+  auth: bearer
+}
+
+params:path {
+  id: 4f0dcb29-84ac-4bb4-b703-6a0257952609
+}
+
+auth:bearer {
+  token: {{BEARER_TOKEN}}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

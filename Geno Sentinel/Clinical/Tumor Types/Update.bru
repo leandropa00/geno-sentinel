@@ -1,0 +1,31 @@
+meta {
+  name: Update
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{BASE_URL}}/api/clinical/tumor-types/:id
+  body: json
+  auth: bearer
+}
+
+params:path {
+  id: 2
+}
+
+auth:bearer {
+  token: {{BEARER_TOKEN}}
+}
+
+body:json {
+  {
+    "name": "Cáncer de Mama",
+    "systemAffected": "Glándulas"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

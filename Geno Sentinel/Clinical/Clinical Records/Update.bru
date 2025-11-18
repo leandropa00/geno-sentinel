@@ -1,0 +1,34 @@
+meta {
+  name: Update
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{BASE_URL}}/api/clinical/clinical-records/:id
+  body: json
+  auth: bearer
+}
+
+params:path {
+  id: 4f0dcb29-84ac-4bb4-b703-6a0257952609
+}
+
+auth:bearer {
+  token: {{BEARER_TOKEN}}
+}
+
+body:json {
+  {
+    "patientId": "d385856f-6dcc-4e10-9aa4-77c87ee6cb13",
+    "tumorTypeId": 2,
+    "diagnosisDate": "2024-01-15",
+    "stage": "IIA",
+    "treatmentProtocol": "Protocolo de quimioterapia estándar"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
