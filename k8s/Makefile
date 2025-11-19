@@ -1,10 +1,11 @@
 .PHONY: help check-k8s diagnose-k8s setup-minikube-docker deploy deploy-all delete delete-all status status-all \
         logs logs-all port-forward restart restart-all scale wait-all cleanup clinical-service \
-        build-minikube-clinical build-minikube-api-gateway build-all-minikube build-and-deploy-all
+        build-minikube-clinical build-minikube-api-gateway build-minikube-frontend build-all-minikube build-and-deploy-all \
+        deploy-from-scratch fresh-deploy
 
 # Variables
 NAMESPACE := default
-SERVICES := clinical-service genomic-service api-gateway
+SERVICES := clinical-service genomic-service api-gateway frontend
 SKIP_VALIDATION := false
 MINIKUBE_PROFILE := minikube
 CLINICAL_SERVICE_DIR := ../clinical-service
@@ -15,6 +16,9 @@ CLINICAL_MYSQL_LABEL := app=clinical-mysql
 API_GATEWAY_DIR := ../api-gateway
 API_GATEWAY_IMAGE_NAME := api-gateway
 API_GATEWAY_IMAGE_TAG := latest
+FRONTEND_DIR := ../frontend
+FRONTEND_IMAGE_NAME := geno-sentinel-frontend
+FRONTEND_IMAGE_TAG := latest
 
 # Colores para output
 GREEN := \033[0;32m
@@ -30,6 +34,7 @@ help: ## Muestra esta ayuda
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(YELLOW)%-25s$(NC) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(CYAN)Ejemplos:$(NC)"
+	@echo "  $(GREEN)make deploy-from-scratch$(NC)     - Desplegar todo desde cero (recomendado)"
 	@echo "  $(GREEN)make deploy-all$(NC)              - Desplegar todos los servicios"
 	@echo "  $(GREEN)make deploy SERVICE=clinical-service$(NC)  - Desplegar un servicio específico"
 	@echo "  $(GREEN)make status-all$(NC)              - Ver estado de todos los servicios"
@@ -325,7 +330,7 @@ status-all: ## Muestra el estado de todos los servicios
 		fi; \
 	done
 	@echo "$(BLUE)=== Resumen de recursos ===$(NC)"
-	@kubectl get pods,svc,deployments --all-namespaces 2>/dev/null | grep -E "(NAME|clinical|genomic|api-gateway)" || echo "No hay recursos relacionados"
+	@kubectl get pods,svc,deployments --all-namespaces 2>/dev/null | grep -E "(NAME|clinical|genomic|api-gateway|frontend)" || echo "No hay recursos relacionados"
 
 status-clinical: ## Muestra el estado de todos los recursos de clinical-service
 	@echo "$(BLUE)=== Estado de Pods ===$(NC)"
@@ -366,19 +371,35 @@ logs-all: ## Muestra logs de todos los servicios
 # PORT-FORWARD
 # ============================================
 
-port-forward: ## Port-forward de un servicio (uso: make port-forward SERVICE=clinical-service PORT=3000)
+port-forward: ## Port-forward de un servicio (uso: make port-forward SERVICE=clinical-service)
 	@if [ -z "$(SERVICE)" ]; then \
 		echo "$(RED)Error: Especifica el servicio con SERVICE=<nombre>$(NC)"; \
 		exit 1; \
 	fi
-	@if [ -z "$(PORT)" ]; then \
-		echo "$(YELLOW)Usando puerto por defecto 3000. Especifica PORT=<puerto> para cambiar$(NC)"; \
-		PORT=3000; \
-	fi
-	@echo "$(GREEN)Port-forward de $(SERVICE) en http://localhost:$(PORT)$(NC)"
-	@echo "$(YELLOW)Presiona Ctrl+C para detener$(NC)"
-	@kubectl port-forward svc/$(SERVICE) $(PORT):$(PORT) 2>/dev/null || \
-	echo "$(RED)Error: No se pudo hacer port-forward$(NC)"
+	@bash -c '\
+	SVC_PORT=$$(kubectl get svc $(SERVICE) -o jsonpath="{.spec.ports[0].port}" 2>/dev/null); \
+	if [ -z "$$SVC_PORT" ]; then \
+		if [ "$(SERVICE)" = "frontend" ]; then \
+			SVC_PORT=80; \
+		elif [ "$(SERVICE)" = "api-gateway" ]; then \
+			SVC_PORT=8080; \
+		elif [ "$(SERVICE)" = "clinical-service" ]; then \
+			SVC_PORT=3000; \
+		else \
+			SVC_PORT=3000; \
+		fi; \
+	fi; \
+	if [ "$$SVC_PORT" = "80" ]; then \
+		LOCAL_PORT=8080; \
+		echo "$(YELLOW)Nota: Puerto 80 requiere permisos root. Usando puerto local 8080$(NC)"; \
+	else \
+		LOCAL_PORT=$$SVC_PORT; \
+	fi; \
+	echo "$(GREEN)Port-forward de $(SERVICE) en http://localhost:$$LOCAL_PORT$(NC)"; \
+	echo "$(YELLOW)Puerto local: $$LOCAL_PORT -> Puerto servicio: $$SVC_PORT$(NC)"; \
+	echo "$(YELLOW)Presiona Ctrl+C para detener$(NC)"; \
+	kubectl port-forward svc/$(SERVICE) $$LOCAL_PORT:$$SVC_PORT 2>/dev/null || \
+	echo "$(RED)Error: No se pudo hacer port-forward$(NC)"'
 
 # ============================================
 # RESTART
@@ -429,10 +450,17 @@ wait-all: ## Espera a que todos los servicios estén listos
 	@for service in $(SERVICES); do \
 		if [ -d "$$service" ] && [ -n "$$(ls -A $$service 2>/dev/null)" ]; then \
 			echo "$(CYAN)Esperando $$service...$(NC)"; \
-			kubectl wait --for=condition=ready pod -l app=$$service --timeout=300s 2>/dev/null || true; \
+			if [ "$$service" = "clinical-service" ]; then \
+				echo "$(YELLOW)  Esperando MySQL...$(NC)"; \
+				kubectl wait --for=condition=ready pod -l app=clinical-mysql --timeout=300s 2>/dev/null || echo "$(YELLOW)    MySQL aún no está listo (continuando...)$(NC)"; \
+				echo "$(YELLOW)  Esperando Clinical Service...$(NC)"; \
+				kubectl wait --for=condition=ready pod -l app=$$service --timeout=300s 2>/dev/null || echo "$(YELLOW)    $$service aún no está listo (continuando...)$(NC)"; \
+			else \
+				kubectl wait --for=condition=ready pod -l app=$$service --timeout=300s 2>/dev/null || echo "$(YELLOW)    $$service aún no está listo (continuando...)$(NC)"; \
+			fi; \
 		fi; \
 	done
-	@echo "$(GREEN)Todos los servicios están listos!$(NC)"
+	@echo "$(GREEN)✓ Espera completada$(NC)"
 
 # ============================================
 # LIMPIEZA
@@ -469,6 +497,10 @@ build-all-minikube: ## Construye todas las imágenes Docker usando el entorno de
 		echo "$(RED)Error: No se encuentra el directorio del servicio en $(API_GATEWAY_DIR)$(NC)"; \
 		exit 1; \
 	fi
+	@if [ ! -d "$(FRONTEND_DIR)" ]; then \
+		echo "$(RED)Error: No se encuentra el directorio del servicio en $(FRONTEND_DIR)$(NC)"; \
+		exit 1; \
+	fi
 	@echo "$(GREEN)=== Construyendo todas las imágenes en Minikube ===$(NC)\n"
 	@echo "$(YELLOW)Configurando entorno de Docker de Minikube...$(NC)"
 	@bash -c "eval \$$(minikube -p $(MINIKUBE_PROFILE) docker-env) && \
@@ -480,7 +512,12 @@ build-all-minikube: ## Construye todas las imágenes Docker usando el entorno de
 		echo \"$(CYAN)--- Construyendo API Gateway ---$(NC)\" && \
 		cd $(API_GATEWAY_DIR) && \
 		docker build -f Dockerfile -t $(API_GATEWAY_IMAGE_NAME):$(API_GATEWAY_IMAGE_TAG) . && \
-		echo \"$(GREEN)✓ API Gateway construido$(NC)\""
+		echo \"$(GREEN)✓ API Gateway construido$(NC)\" && \
+		echo \"\" && \
+		echo \"$(CYAN)--- Construyendo Frontend ---$(NC)\" && \
+		cd $(FRONTEND_DIR) && \
+		docker build -f Dockerfile -t $(FRONTEND_IMAGE_NAME):$(FRONTEND_IMAGE_TAG) . && \
+		echo \"$(GREEN)✓ Frontend construido$(NC)\""
 	@echo ""
 	@echo "$(GREEN)✓ Todas las imágenes construidas exitosamente!$(NC)"
 
@@ -493,6 +530,100 @@ build-and-deploy-all: check-k8s ## Construye todas las imágenes y despliega tod
 	@echo ""
 	@echo "$(GREEN)✓ Proceso completado!$(NC)"
 	@echo "$(CYAN)Usa 'make status-all' para ver el estado de los servicios$(NC)"
+
+deploy-from-scratch: check-k8s ## Despliega todo desde cero: elimina, construye y despliega (alias: fresh-deploy)
+	@echo "$(GREEN)=== Despliegue desde cero en Minikube ===$(NC)\n"
+	@echo "$(YELLOW)Este comando hará lo siguiente:$(NC)"
+	@echo "  1. Verificar/Iniciar Minikube"
+	@echo "  2. Eliminar todos los servicios existentes"
+	@echo "  3. Construir todas las imágenes Docker"
+	@echo "  4. Desplegar todos los servicios"
+	@echo "  5. Esperar a que todo esté listo"
+	@echo "  6. Verificar estado de los pods"
+	@echo "  7. Mostrar el estado final"
+	@echo "  8. Configurar port-forward del frontend"
+	@echo ""
+	@echo "$(CYAN)=== Paso 1: Verificando/Iniciando Minikube ===$(NC)"
+	@if ! command -v minikube >/dev/null 2>&1; then \
+		echo "$(RED)Error: Minikube no está instalado$(NC)"; \
+		exit 1; \
+	fi
+	@if ! minikube status -p $(MINIKUBE_PROFILE) &>/dev/null; then \
+		echo "$(YELLOW)Minikube no está corriendo. Iniciando...$(NC)"; \
+		minikube start -p $(MINIKUBE_PROFILE); \
+	else \
+		echo "$(GREEN)✓ Minikube está corriendo$(NC)"; \
+	fi
+	@echo ""
+	@echo "$(CYAN)=== Paso 2: Eliminando servicios existentes ===$(NC)"
+	@$(MAKE) delete-all || echo "$(YELLOW)No hay servicios para eliminar o error al eliminar (continuando...)$(NC)"
+	@echo "$(GREEN)✓ Limpieza completada$(NC)"
+	@echo ""
+	@echo "$(CYAN)=== Paso 3: Construyendo todas las imágenes Docker ===$(NC)"
+	@$(MAKE) build-all-minikube
+	@echo ""
+	@echo "$(CYAN)=== Paso 4: Desplegando todos los servicios ===$(NC)"
+	@$(MAKE) deploy-all
+	@echo ""
+	@echo "$(CYAN)=== Paso 5: Esperando a que todos los servicios estén listos ===$(NC)"
+	@$(MAKE) wait-all
+	@echo ""
+	@echo "$(CYAN)=== Paso 6: Verificando estado de los servicios ===$(NC)"
+	@echo "$(YELLOW)Verificando que todos los pods estén en estado Running...$(NC)"
+	@bash -c ' \
+		TIMEOUT=300; \
+		ELAPSED=0; \
+		while [ $$ELAPSED -lt $$TIMEOUT ]; do \
+			READY_PODS=$$(kubectl get pods --no-headers 2>/dev/null | grep -E "(clinical-service|api-gateway|frontend)" | grep -c "Running" || echo "0"); \
+			TOTAL_PODS=$$(kubectl get pods --no-headers 2>/dev/null | grep -E "(clinical-service|api-gateway|frontend)" | wc -l || echo "0"); \
+			if [ "$$TOTAL_PODS" -gt 0 ] && [ "$$READY_PODS" -eq "$$TOTAL_PODS" ]; then \
+				echo -e "\033[0;32m✓ Todos los pods están en estado Running ($$READY_PODS/$$TOTAL_PODS)\033[0m"; \
+				break; \
+			fi; \
+			echo -e "\033[1;33m  Esperando... ($$READY_PODS/$$TOTAL_PODS pods listos) - $$ELAPSED segundos\033[0m"; \
+			sleep 5; \
+			ELAPSED=$$((ELAPSED + 5)); \
+		done'
+	@echo ""
+	@echo "$(CYAN)=== Paso 7: Estado final de los servicios ===$(NC)"
+	@$(MAKE) status-all
+	@echo ""
+	@echo "$(GREEN)═══════════════════════════════════════════════════════════════$(NC)"
+	@echo "$(GREEN)✓ Despliegue desde cero completado exitosamente!$(NC)"
+	@echo "$(GREEN)═══════════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	@echo "$(CYAN)=== Paso 8: Configurando port-forward del frontend ===$(NC)"
+	@echo "$(YELLOW)Iniciando port-forward en segundo plano...$(NC)"
+	@pkill -f "kubectl port-forward.*frontend" 2>/dev/null || true
+	@sleep 2
+	@bash -c '\
+		SVC_PORT=80; \
+		LOCAL_PORT=4200; \
+		echo "$(GREEN)✓ Port-forward configurado: http://localhost:$$LOCAL_PORT -> frontend:$$SVC_PORT$(NC)"; \
+		kubectl port-forward svc/frontend $$LOCAL_PORT:$$SVC_PORT > /dev/null 2>&1 & \
+		echo "$$!" > /tmp/frontend-port-forward.pid; \
+		sleep 2; \
+		if ps -p $$(cat /tmp/frontend-port-forward.pid 2>/dev/null) > /dev/null 2>&1; then \
+			echo "$(GREEN)✓ Port-forward activo en segundo plano (PID: $$(cat /tmp/frontend-port-forward.pid))$(NC)"; \
+		else \
+			echo "$(YELLOW)⚠ Port-forward no se pudo iniciar automáticamente$(NC)"; \
+		fi'
+	@echo ""
+	@echo "$(CYAN)Información de acceso:$(NC)"
+	@echo "  $(GREEN)Frontend:$(NC) http://localhost:4200"
+	@echo "  $(GREEN)API Gateway:$(NC) http://localhost:8080/api"
+	@echo ""
+	@echo "$(YELLOW)Credenciales de acceso:$(NC)"
+	@echo "  Usuario: $(GREEN)admin$(NC) / Contraseña: $(GREEN)admin123$(NC)"
+	@echo "  Usuario: $(GREEN)user$(NC) / Contraseña: $(GREEN)user123$(NC)"
+	@echo ""
+	@echo "$(CYAN)Comandos útiles:$(NC)"
+	@echo "  $(YELLOW)make status-all$(NC)                      - Ver estado detallado de todos los servicios"
+	@echo "  $(YELLOW)make logs SERVICE=<nombre>$(NC)          - Ver logs de un servicio específico"
+	@echo "  $(YELLOW)pkill -f "kubectl port-forward.*frontend"$(NC)  - Detener port-forward del frontend"
+	@echo ""
+
+fresh-deploy: deploy-from-scratch ## Alias para deploy-from-scratch
 
 build-minikube-clinical: ## Construye la imagen Docker usando el entorno de Minikube
 	@if [ ! -d "$(CLINICAL_SERVICE_DIR)" ]; then \
@@ -533,6 +664,27 @@ build-minikube-api-gateway: ## Construye la imagen Docker del API Gateway usando
 	@bash -c "eval \$$(minikube -p $(MINIKUBE_PROFILE) docker-env) && \
 		cd $(API_GATEWAY_DIR) && \
 		docker build -f Dockerfile -t $(API_GATEWAY_IMAGE_NAME):$(API_GATEWAY_IMAGE_TAG) ."
+	@echo "$(GREEN)Imagen construida exitosamente en Minikube!$(NC)"
+	@echo "$(CYAN)La imagen está disponible en el cluster de Minikube$(NC)"
+
+build-minikube-frontend: ## Construye la imagen Docker del Frontend usando el entorno de Minikube
+	@if [ ! -d "$(FRONTEND_DIR)" ]; then \
+		echo "$(RED)Error: No se encuentra el directorio del servicio en $(FRONTEND_DIR)$(NC)"; \
+		exit 1; \
+	fi
+	@if ! command -v minikube >/dev/null 2>&1; then \
+		echo "$(RED)Error: Minikube no está instalado$(NC)"; \
+		exit 1; \
+	fi
+	@if ! minikube status -p $(MINIKUBE_PROFILE) &>/dev/null; then \
+		echo "$(YELLOW)Minikube no está corriendo. Iniciando...$(NC)"; \
+		minikube start -p $(MINIKUBE_PROFILE); \
+	fi
+	@echo "$(GREEN)Construyendo imagen $(FRONTEND_IMAGE_NAME):$(FRONTEND_IMAGE_TAG) en Minikube...$(NC)"
+	@echo "$(YELLOW)Configurando entorno de Docker de Minikube...$(NC)"
+	@bash -c "eval \$$(minikube -p $(MINIKUBE_PROFILE) docker-env) && \
+		cd $(FRONTEND_DIR) && \
+		docker build -f Dockerfile -t $(FRONTEND_IMAGE_NAME):$(FRONTEND_IMAGE_TAG) ."
 	@echo "$(GREEN)Imagen construida exitosamente en Minikube!$(NC)"
 	@echo "$(CYAN)La imagen está disponible en el cluster de Minikube$(NC)"
 
