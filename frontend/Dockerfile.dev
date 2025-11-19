@@ -1,0 +1,28 @@
+# Development Dockerfile
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Install Angular CLI globally
+RUN npm install -g @angular/cli@17
+
+# Copy package files
+COPY package.json package-lock.json* ./
+
+# Install dependencies
+# Use npm ci if package-lock.json exists, otherwise use npm install
+RUN if [ -f package-lock.json ]; then \
+      npm ci && npm cache clean --force; \
+    else \
+      npm install && npm cache clean --force; \
+    fi
+
+# Copy source code
+COPY . .
+
+# Expose port
+EXPOSE 4200
+
+# Start development server
+CMD ["ng", "serve", "--host", "0.0.0.0", "--port", "4200", "--disable-host-check"]
+
