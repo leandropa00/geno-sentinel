@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: genomic-service
+  namespace: default
+  labels:
+    app: genomic-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: genomic-service
+  template:
+    metadata:
+      labels:
+        app: genomic-service
+    spec:
+      containers:
+      - name: genomic-service
+        image: genomic-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        - name: DJANGO_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: genomic-service-secret
+              key: DJANGO_SECRET_KEY
+        - name: MONGO_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: genomic-service-config
+              key: MONGO_HOST
+        - name: MONGO_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: genomic-service-config
+              key: MONGO_PORT
+        - name: MONGO_DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: genomic-service-config
+              key: MONGO_DB_NAME
+        - name: DJANGO_SETTINGS_MODULE
+          valueFrom:
+            configMapKeyRef:
+              name: genomic-service-config
+              key: DJANGO_SETTINGS_MODULE
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /api/
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /api/
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
