@@ -22,6 +22,7 @@ public class SecurityConfig {
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
         return http
                 .csrf(csrf -> csrf.disable())
+                .cors(cors -> {})
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers("/api/auth/**", "/actuator/health", "/actuator/info", "/api/status").permitAll()
                         .anyExchange().authenticated()
