@@ -1,0 +1,34 @@
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# Install system dependencies for genomic libraries
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    make \
+    zlib1g-dev \
+    libbz2-dev \
+    liblzma-dev \
+    libcurl4-openssl-dev \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY requirements-dev.txt .
+
+# Install Python dependencies
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements-dev.txt
+
+# Copy project files
+COPY . .
+
+# Expose port
+EXPOSE 8000
+
+# Run development server
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
