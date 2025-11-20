@@ -17,14 +17,15 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 
-from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from drf_spectacular.views import SpectacularSwaggerView
 
 from genomic_service.health import health_check
+from genomic_service.schema_view import CustomSpectacularAPIView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('health/', health_check, name='health'),
-    path('schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('schema/', CustomSpectacularAPIView.as_view(), name='schema'),
     path(
         'docs/',
         SpectacularSwaggerView.as_view(url_name='schema'),
