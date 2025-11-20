@@ -19,8 +19,11 @@ from django.urls import include, path
 
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
+from genomic_service.health import health_check
+
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('health/', health_check, name='health'),
     path('schema/', SpectacularAPIView.as_view(), name='schema'),
     path(
         'docs/',
