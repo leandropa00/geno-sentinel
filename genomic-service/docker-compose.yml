@@ -1,0 +1,32 @@
+version: '3.9'
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: genomic-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: geno_sentinel_genomics
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  genomic-service:
+    build: .
+    container_name: genomic-service
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-change-me}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-true}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-*}
+      MONGO_URI: mongodb://mongodb:27017
+      MONGO_DB_NAME: ${MONGO_DB_NAME:-geno_sentinel_genomics}
+      CLINICAL_SERVICE_BASE_URL: ${CLINICAL_SERVICE_BASE_URL:-http://clinical-service:3000/clinical}
+    ports:
+      - "8001:8001"
+
+volumes:
+  mongo-data:
