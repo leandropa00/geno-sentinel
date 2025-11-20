@@ -1,0 +1,29 @@
+meta {
+  name: Create
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{BASE_URL}}/genomic/genes
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{BEARER_TOKEN}}
+}
+
+body:json {
+  {
+    "symbol": "BRCA1",
+    "fullName": "BRCA1 DNA repair associated",
+    "functionSummary": "This gene encodes a nuclear phosphoprotein that plays a role in maintaining genomic stability, acting as a tumor suppressor."
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

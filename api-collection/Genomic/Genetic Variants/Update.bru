@@ -1,0 +1,36 @@
+meta {
+  name: Update
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{BASE_URL}}/genomic/genetic-variants/:id
+  body: json
+  auth: bearer
+}
+
+params:path {
+  id: 123e4567-e89b-12d3-a456-426614174000
+}
+
+auth:bearer {
+  token: {{BEARER_TOKEN}}
+}
+
+body:json {
+  {
+    "geneId": "123e4567-e89b-12d3-a456-426614174000",
+    "chromosome": "17",
+    "position": 43044295,
+    "referenceBase": "A",
+    "alternateBase": "G",
+    "impact": "Frameshift"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

@@ -1,0 +1,25 @@
+meta {
+  name: Delete
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{BASE_URL}}/genomic/patient-variant-reports/:id
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{BEARER_TOKEN}}
+}
+
+params:path {
+  id: 123e4567-e89b-12d3-a456-426614174000
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

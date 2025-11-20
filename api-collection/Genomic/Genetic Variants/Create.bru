@@ -1,0 +1,32 @@
+meta {
+  name: Create
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{BASE_URL}}/genomic/genetic-variants
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{BEARER_TOKEN}}
+}
+
+body:json {
+  {
+    "geneId": "123e4567-e89b-12d3-a456-426614174000",
+    "chromosome": "17",
+    "position": 43044295,
+    "referenceBase": "A",
+    "alternateBase": "G",
+    "impact": "Missense"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+
