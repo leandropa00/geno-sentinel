@@ -1,6 +1,6 @@
 .PHONY: help check-k8s diagnose-k8s setup-minikube-docker deploy deploy-all delete delete-all status status-all \
         logs logs-all port-forward restart restart-all scale wait-all cleanup clinical-service genomic-service \
-        build-minikube-clinical build-minikube-genomic build-minikube-api-gateway build-minikube-frontend build-all-minikube build-all-docker build-all build-and-deploy-all \
+        build-minikube-clinical build-minikube-genomic build-minikube-api-gateway build-minikube-frontend build-all-minikube build-all-docker build-all build-all-if-missing build-all-minikube-if-missing build-all-docker-if-missing build-and-deploy-all \
         deploy-from-scratch fresh-deploy deploy-clinical deploy-genomic delete-clinical delete-genomic status-clinical status-genomic
 
 # Variables
@@ -660,6 +660,152 @@ build-all: ## Construye todas las imágenes Docker (detecta automáticamente Min
 			$(MAKE) build-all-docker; \
 		fi'
 
+build-all-if-missing: ## Construye todas las imágenes Docker solo si no existen (detecta automáticamente Minikube o Docker Desktop)
+	@bash -c '\
+		CURRENT_CTX=$$(kubectl config current-context 2>/dev/null || echo ""); \
+		if [ -n "$$CURRENT_CTX" ] && echo "$$CURRENT_CTX" | grep -q "minikube"; then \
+			if command -v minikube >/dev/null 2>&1 && minikube status -p $(MINIKUBE_PROFILE) &>/dev/null; then \
+				echo "$(CYAN)Detectado Minikube, usando build-all-minikube-if-missing...$(NC)"; \
+				$(MAKE) build-all-minikube-if-missing; \
+			else \
+				echo "$(YELLOW)Minikube detectado pero no está corriendo, usando Docker estándar...$(NC)"; \
+				$(MAKE) build-all-docker-if-missing; \
+			fi; \
+		else \
+			echo "$(CYAN)Usando Docker estándar (Docker Desktop u otro)...$(NC)"; \
+			$(MAKE) build-all-docker-if-missing; \
+		fi'
+
+build-all-minikube-if-missing: ## Construye todas las imágenes Docker en Minikube solo si no existen
+	@if ! command -v minikube >/dev/null 2>&1; then \
+		echo "$(RED)Error: Minikube no está instalado$(NC)"; \
+		exit 1; \
+	fi
+	@if ! minikube status -p $(MINIKUBE_PROFILE) &>/dev/null; then \
+		echo "$(YELLOW)Minikube no está corriendo. Iniciando...$(NC)"; \
+		minikube start -p $(MINIKUBE_PROFILE); \
+	fi
+	@if [ ! -d "$(CLINICAL_SERVICE_DIR)" ]; then \
+		echo "$(RED)Error: No se encuentra el directorio del servicio en $(CLINICAL_SERVICE_DIR)$(NC)"; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(GENOMIC_SERVICE_DIR)" ]; then \
+		echo "$(RED)Error: No se encuentra el directorio del servicio en $(GENOMIC_SERVICE_DIR)$(NC)"; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(API_GATEWAY_DIR)" ]; then \
+		echo "$(RED)Error: No se encuentra el directorio del servicio en $(API_GATEWAY_DIR)$(NC)"; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(FRONTEND_DIR)" ]; then \
+		echo "$(RED)Error: No se encuentra el directorio del servicio en $(FRONTEND_DIR)$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)=== Construyendo imágenes en Minikube (solo si no existen) ===$(NC)\n"
+	@echo "$(YELLOW)Configurando entorno de Docker de Minikube...$(NC)"
+	@bash -c "eval \$$(minikube -p $(MINIKUBE_PROFILE) docker-env) && \
+		echo \"$(CYAN)--- Verificando Clinical Service ---$(NC)\" && \
+		if docker image inspect $(CLINICAL_IMAGE_NAME):$(CLINICAL_IMAGE_TAG) >/dev/null 2>&1; then \
+			echo \"$(YELLOW)  Imagen $(CLINICAL_IMAGE_NAME):$(CLINICAL_IMAGE_TAG) ya existe, omitiendo construcción$(NC)\"; \
+		else \
+			echo \"$(CYAN)  Construyendo Clinical Service...$(NC)\"; \
+			cd $(CLINICAL_SERVICE_DIR) && \
+			docker build -f Dockerfile -t $(CLINICAL_IMAGE_NAME):$(CLINICAL_IMAGE_TAG) . && \
+			echo \"$(GREEN)  ✓ Clinical Service construido$(NC)\"; \
+		fi && \
+		echo \"\" && \
+		echo \"$(CYAN)--- Verificando Genomic Service ---$(NC)\" && \
+		if docker image inspect $(GENOMIC_IMAGE_NAME):$(GENOMIC_IMAGE_TAG) >/dev/null 2>&1; then \
+			echo \"$(YELLOW)  Imagen $(GENOMIC_IMAGE_NAME):$(GENOMIC_IMAGE_TAG) ya existe, omitiendo construcción$(NC)\"; \
+		else \
+			echo \"$(CYAN)  Construyendo Genomic Service...$(NC)\"; \
+			cd $(GENOMIC_SERVICE_DIR) && \
+			docker build -f Dockerfile -t $(GENOMIC_IMAGE_NAME):$(GENOMIC_IMAGE_TAG) . && \
+			echo \"$(GREEN)  ✓ Genomic Service construido$(NC)\"; \
+		fi && \
+		echo \"\" && \
+		echo \"$(CYAN)--- Verificando API Gateway ---$(NC)\" && \
+		if docker image inspect $(API_GATEWAY_IMAGE_NAME):$(API_GATEWAY_IMAGE_TAG) >/dev/null 2>&1; then \
+			echo \"$(YELLOW)  Imagen $(API_GATEWAY_IMAGE_NAME):$(API_GATEWAY_IMAGE_TAG) ya existe, omitiendo construcción$(NC)\"; \
+		else \
+			echo \"$(CYAN)  Construyendo API Gateway...$(NC)\"; \
+			cd $(API_GATEWAY_DIR) && \
+			docker build -f Dockerfile -t $(API_GATEWAY_IMAGE_NAME):$(API_GATEWAY_IMAGE_TAG) . && \
+			echo \"$(GREEN)  ✓ API Gateway construido$(NC)\"; \
+		fi && \
+		echo \"\" && \
+		echo \"$(CYAN)--- Verificando Frontend ---$(NC)\" && \
+		if docker image inspect $(FRONTEND_IMAGE_NAME):$(FRONTEND_IMAGE_TAG) >/dev/null 2>&1; then \
+			echo \"$(YELLOW)  Imagen $(FRONTEND_IMAGE_NAME):$(FRONTEND_IMAGE_TAG) ya existe, omitiendo construcción$(NC)\"; \
+		else \
+			echo \"$(CYAN)  Construyendo Frontend...$(NC)\"; \
+			cd $(FRONTEND_DIR) && \
+			docker build -f Dockerfile -t $(FRONTEND_IMAGE_NAME):$(FRONTEND_IMAGE_TAG) . && \
+			echo \"$(GREEN)  ✓ Frontend construido$(NC)\"; \
+		fi"
+	@echo ""
+	@echo "$(GREEN)✓ Verificación y construcción completada!$(NC)"
+
+build-all-docker-if-missing: ## Construye todas las imágenes Docker solo si no existen (para Docker Desktop u otros)
+	@if [ ! -d "$(CLINICAL_SERVICE_DIR)" ]; then \
+		echo "$(RED)Error: No se encuentra el directorio del servicio en $(CLINICAL_SERVICE_DIR)$(NC)"; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(GENOMIC_SERVICE_DIR)" ]; then \
+		echo "$(RED)Error: No se encuentra el directorio del servicio en $(GENOMIC_SERVICE_DIR)$(NC)"; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(API_GATEWAY_DIR)" ]; then \
+		echo "$(RED)Error: No se encuentra el directorio del servicio en $(API_GATEWAY_DIR)$(NC)"; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(FRONTEND_DIR)" ]; then \
+		echo "$(RED)Error: No se encuentra el directorio del servicio en $(FRONTEND_DIR)$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)=== Construyendo imágenes con Docker (solo si no existen) ===$(NC)\n"
+	@echo "$(CYAN)--- Verificando Clinical Service ---$(NC)"
+	@if docker image inspect $(CLINICAL_IMAGE_NAME):$(CLINICAL_IMAGE_TAG) >/dev/null 2>&1; then \
+		echo "$(YELLOW)  Imagen $(CLINICAL_IMAGE_NAME):$(CLINICAL_IMAGE_TAG) ya existe, omitiendo construcción$(NC)"; \
+	else \
+		echo "$(CYAN)  Construyendo Clinical Service...$(NC)"; \
+		cd $(CLINICAL_SERVICE_DIR) && \
+		docker build -f Dockerfile -t $(CLINICAL_IMAGE_NAME):$(CLINICAL_IMAGE_TAG) . && \
+		echo "$(GREEN)  ✓ Clinical Service construido$(NC)"; \
+	fi
+	@echo ""
+	@echo "$(CYAN)--- Verificando Genomic Service ---$(NC)"
+	@if docker image inspect $(GENOMIC_IMAGE_NAME):$(GENOMIC_IMAGE_TAG) >/dev/null 2>&1; then \
+		echo "$(YELLOW)  Imagen $(GENOMIC_IMAGE_NAME):$(GENOMIC_IMAGE_TAG) ya existe, omitiendo construcción$(NC)"; \
+	else \
+		echo "$(CYAN)  Construyendo Genomic Service...$(NC)"; \
+		cd $(GENOMIC_SERVICE_DIR) && \
+		docker build -f Dockerfile -t $(GENOMIC_IMAGE_NAME):$(GENOMIC_IMAGE_TAG) . && \
+		echo "$(GREEN)  ✓ Genomic Service construido$(NC)"; \
+	fi
+	@echo ""
+	@echo "$(CYAN)--- Verificando API Gateway ---$(NC)"
+	@if docker image inspect $(API_GATEWAY_IMAGE_NAME):$(API_GATEWAY_IMAGE_TAG) >/dev/null 2>&1; then \
+		echo "$(YELLOW)  Imagen $(API_GATEWAY_IMAGE_NAME):$(API_GATEWAY_IMAGE_TAG) ya existe, omitiendo construcción$(NC)"; \
+	else \
+		echo "$(CYAN)  Construyendo API Gateway...$(NC)"; \
+		cd $(API_GATEWAY_DIR) && \
+		docker build -f Dockerfile -t $(API_GATEWAY_IMAGE_NAME):$(API_GATEWAY_IMAGE_TAG) . && \
+		echo "$(GREEN)  ✓ API Gateway construido$(NC)"; \
+	fi
+	@echo ""
+	@echo "$(CYAN)--- Verificando Frontend ---$(NC)"
+	@if docker image inspect $(FRONTEND_IMAGE_NAME):$(FRONTEND_IMAGE_TAG) >/dev/null 2>&1; then \
+		echo "$(YELLOW)  Imagen $(FRONTEND_IMAGE_NAME):$(FRONTEND_IMAGE_TAG) ya existe, omitiendo construcción$(NC)"; \
+	else \
+		echo "$(CYAN)  Construyendo Frontend...$(NC)"; \
+		cd $(FRONTEND_DIR) && \
+		docker build -f Dockerfile -t $(FRONTEND_IMAGE_NAME):$(FRONTEND_IMAGE_TAG) . && \
+		echo "$(GREEN)  ✓ Frontend construido$(NC)"; \
+	fi
+	@echo ""
+	@echo "$(GREEN)✓ Verificación y construcción completada!$(NC)"
+
 build-and-deploy-all: check-k8s ## Construye todas las imágenes y despliega toda la infraestructura
 	@echo "$(GREEN)=== Construyendo imágenes y desplegando infraestructura completa ===$(NC)\n"
 	@$(MAKE) build-all
@@ -670,7 +816,7 @@ build-and-deploy-all: check-k8s ## Construye todas las imágenes y despliega tod
 	@echo "$(GREEN)✓ Proceso completado!$(NC)"
 	@echo "$(CYAN)Usa 'make status-all' para ver el estado de los servicios$(NC)"
 
-deploy-from-scratch: check-k8s ## Despliega todo desde cero: elimina, construye y despliega (alias: fresh-deploy)
+deploy-from-scratch: check-k8s ## Despliega todo desde cero: elimina, construye imágenes (solo si no existen) y despliega (alias: fresh-deploy)
 	@echo "$(GREEN)=== Despliegue desde cero ===$(NC)\n"
 	@bash -c '\
 		CURRENT_CTX=$$(kubectl config current-context 2>/dev/null || echo ""); \
@@ -682,7 +828,7 @@ deploy-from-scratch: check-k8s ## Despliega todo desde cero: elimina, construye 
 		echo "$(YELLOW)Este comando hará lo siguiente:$(NC)"; \
 		echo "  1. Verificar conexión al cluster de Kubernetes"; \
 		echo "  2. Eliminar todos los servicios existentes"; \
-		echo "  3. Construir todas las imágenes Docker"; \
+		echo "  3. Construir imágenes Docker (solo si no existen)"; \
 		echo "  4. Desplegar todos los servicios"; \
 		echo "  5. Esperar a que todo esté listo"; \
 		echo "  6. Verificar estado de los pods"; \
@@ -709,8 +855,8 @@ deploy-from-scratch: check-k8s ## Despliega todo desde cero: elimina, construye 
 	@$(MAKE) delete-all || echo "$(YELLOW)No hay servicios para eliminar o error al eliminar (continuando...)$(NC)"
 	@echo "$(GREEN)✓ Limpieza completada$(NC)"
 	@echo ""
-	@echo "$(CYAN)=== Paso 3: Construyendo todas las imágenes Docker ===$(NC)"
-	@$(MAKE) build-all
+	@echo "$(CYAN)=== Paso 3: Construyendo imágenes Docker (solo si no existen) ===$(NC)"
+	@$(MAKE) build-all-if-missing
 	@echo ""
 	@echo "$(CYAN)=== Paso 4: Desplegando todos los servicios ===$(NC)"
 	@$(MAKE) deploy-all
