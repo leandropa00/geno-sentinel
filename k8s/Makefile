@@ -825,7 +825,7 @@ deploy-from-scratch: check-k8s ## Despliega todo desde cero: elimina, construye 
 		else \
 			K8S_PROVIDER="Kubernetes"; \
 		fi; \
-		echo "$(YELLOW)Este comando hará lo siguiente:$(NC)"; \
+		echo -e "\033[1;33mEste comando hará lo siguiente:\033[0m"; \
 		echo "  1. Verificar conexión al cluster de Kubernetes"; \
 		echo "  2. Eliminar todos los servicios existentes"; \
 		echo "  3. Construir imágenes Docker (solo si no existen)"; \
@@ -835,7 +835,7 @@ deploy-from-scratch: check-k8s ## Despliega todo desde cero: elimina, construye 
 		echo "  7. Mostrar el estado final"; \
 		echo "  8. Configurar port-forward del frontend"; \
 		echo ""; \
-		echo "$(CYAN)Proveedor detectado: $$K8S_PROVIDER$(NC)"; \
+		echo -e "\033[0;36mProveedor detectado: $$K8S_PROVIDER\033[0m"; \
 		echo ""'
 	@echo "$(CYAN)=== Paso 1: Verificando conexión al cluster ===$(NC)"
 	@bash -c '\
