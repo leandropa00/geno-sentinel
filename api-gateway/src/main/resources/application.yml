@@ -6,6 +6,9 @@ spring:
     name: api-gateway
   cloud:
     gateway:
+      httpclient:
+        connect-timeout: 10000
+        response-timeout: 60s
       routes:
         - id: clinical-service
           uri: http://${CLINICAL_SERVICE_HOST:clinical-service}:${CLINICAL_SERVICE_PORT:3000}
@@ -18,7 +21,7 @@ spring:
           predicates:
             - Path=/api/genomic/**
           filters:
-            - StripPrefix=2
+            - StripPrefix=1
       default-filters:
         - name: Retry
           args:
