@@ -21,7 +21,7 @@ spring:
           predicates:
             - Path=/api/genomic/**
           filters:
-            - StripPrefix=1
+            - StripPrefix=2
       default-filters:
         - name: Retry
           args:

@@ -27,5 +27,5 @@ urlpatterns = [
         SpectacularSwaggerView.as_view(url_name='schema'),
         name='swagger-ui',
     ),
-    path('genomic/', include('genomics.presentation.routers.api_router')),
+    path('', include('genomics.presentation.routers.api_router')),
 ]

@@ -9,7 +9,7 @@ Microservicio responsable de la gestión de genes, variantes genéticas y report
 - **Reportes de variantes por paciente**, integrándose con el microservicio clínico para validar y enriquecer datos del paciente.
 - **DTOs y validaciones** dedicadas mediante serializers + dataclasses.
 - **Documentación OpenAPI/Swagger** disponible en `/docs/` y esquema en `/schema/`.
-- **Compatibilidad con el frontend Angular actual** (`/genomic/...` endpoints).
+- **Endpoints REST** disponibles directamente en la raíz del servicio.
 
 ## Estructura de carpetas
 
@@ -75,13 +75,13 @@ El servicio quedará disponible en `http://localhost:8001`.
 
 | Recurso | Ruta base |
 | --- | --- |
-| Genes | `/genomic/genes` |
-| Variantes genéticas | `/genomic/genetic-variants` |
-| Reportes de pacientes | `/genomic/patient-variant-reports` |
+| Genes | `/genes` |
+| Variantes genéticas | `/genetic-variants` |
+| Reportes de pacientes | `/patient-variant-reports` |
 | Documentación Swagger | `/docs/` |
 | Esquema OpenAPI | `/schema/` |
 
-Cada recurso expone operaciones CRUD y endpoints adicionales (por ejemplo, `/genomic/genetic-variants/gene/{geneId}` o `/genomic/patient-variant-reports/patient/{patientId}`).
+Cada recurso expone operaciones CRUD y endpoints adicionales (por ejemplo, `/genetic-variants/gene/{geneId}` o `/patient-variant-reports/patient/{patientId}`).
 
 ## Tests
 
