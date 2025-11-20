@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: genomic-service-config
+  namespace: default
+  labels:
+    app: genomic-service
+data:
+  DJANGO_DEBUG: "false"
+  DJANGO_ALLOWED_HOSTS: "*"
+  MONGO_URI: "mongodb://genomic-mongodb:27017"
+  MONGO_DB_NAME: "geno_sentinel_genomics"
+  CLINICAL_SERVICE_BASE_URL: "http://clinical-service:3000/clinical"
+

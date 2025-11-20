@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: genomic-mongodb-config
+  namespace: default
+  labels:
+    app: genomic-mongodb
+data:
+  MONGO_INITDB_DATABASE: "geno_sentinel_genomics"
+

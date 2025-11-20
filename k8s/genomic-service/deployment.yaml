@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: genomic-service
+  namespace: default
+  labels:
+    app: genomic-service
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: genomic-service
+  template:
+    metadata:
+      labels:
+        app: genomic-service
+        version: v1
+    spec:
+      containers:
+      - name: genomic-service
+        image: genomic-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 8001
+          protocol: TCP
+        env:
+        - name: DJANGO_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: genomic-service-secret
+              key: DJANGO_SECRET_KEY
+        - name: DJANGO_DEBUG
+          valueFrom:
+            configMapKeyRef:
+              name: genomic-service-config
+              key: DJANGO_DEBUG
+        - name: DJANGO_ALLOWED_HOSTS
+          valueFrom:
+            configMapKeyRef:
+              name: genomic-service-config
+              key: DJANGO_ALLOWED_HOSTS
+        - name: MONGO_URI
+          valueFrom:
+            configMapKeyRef:
+              name: genomic-service-config
+              key: MONGO_URI
+        - name: MONGO_DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: genomic-service-config
+              key: MONGO_DB_NAME
+        - name: CLINICAL_SERVICE_BASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: genomic-service-config
+              key: CLINICAL_SERVICE_BASE_URL
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /genomic/genes
+            port: 8001
+          initialDelaySeconds: 40
+          periodSeconds: 30
+          timeoutSeconds: 3
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /genomic/genes
+            port: 8001
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+            - ALL
+
