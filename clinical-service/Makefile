@@ -1,4 +1,4 @@
-.PHONY: help dev-build dev-up dev-down dev-logs dev-restart dev-clean dev-up-build \
+.PHONY: help build up down logs restart clean up-build \
         prod-build prod-up prod-down prod-logs prod-restart prod-clean prod-up-build \
         clean-all status
 
@@ -22,31 +22,31 @@ help: ## Muestra esta ayuda
 # COMANDOS DE DESARROLLO
 # ============================================
 
-dev-build: ## Construye la imagen de desarrollo
+build: ## Construye la imagen de desarrollo
 	@echo "$(GREEN)Construyendo imagen de desarrollo...$(NC)"
 	docker compose build
 
-dev-up: ## Inicia los contenedores en modo desarrollo
+up: ## Inicia los contenedores en modo desarrollo
 	@echo "$(GREEN)Iniciando servicios en modo desarrollo...$(NC)"
 	docker compose up -d
-	@echo "$(GREEN)Servicios iniciados. Ver logs con: make dev-logs$(NC)"
+	@echo "$(GREEN)Servicios iniciados. Ver logs con: make logs$(NC)"
 
-dev-up-build: ## Construye e inicia los contenedores en modo desarrollo
+up-build: ## Construye e inicia los contenedores en modo desarrollo
 	@echo "$(GREEN)Construyendo e iniciando servicios en modo desarrollo...$(NC)"
 	docker compose up -d --build
 
-dev-down: ## Detiene los contenedores de desarrollo
+down: ## Detiene los contenedores de desarrollo
 	@echo "$(YELLOW)Deteniendo contenedores de desarrollo...$(NC)"
 	docker compose down
 	@echo "$(GREEN)Contenedores detenidos$(NC)"
 
-dev-logs: ## Muestra los logs de desarrollo
+logs: ## Muestra los logs de desarrollo
 	@echo "$(GREEN)Logs de los servicios de desarrollo:$(NC)"
 	docker compose logs -f
 
-dev-restart: dev-down dev-up ## Reinicia los contenedores de desarrollo
+restart: down up ## Reinicia los contenedores de desarrollo
 
-dev-clean: dev-down ## Limpia contenedores e imágenes de desarrollo
+clean: down ## Limpia contenedores e imágenes de desarrollo
 	@echo "$(YELLOW)Eliminando contenedores, volúmenes e imágenes de desarrollo...$(NC)"
 	docker compose down -v --rmi local
 	@echo "$(GREEN)Limpieza completada$(NC)"
@@ -99,7 +99,7 @@ prod-clean: prod-down ## Limpia contenedor e imagen de producción
 # COMANDOS GENERALES
 # ============================================
 
-clean-all: dev-clean prod-clean ## Limpia todo (desarrollo y producción)
+clean-all: clean prod-clean ## Limpia todo (desarrollo y producción)
 	@echo "$(GREEN)Limpieza completa finalizada$(NC)"
 
 status: ## Muestra el estado de los contenedores
