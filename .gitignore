@@ -1,0 +1,18 @@
+# Python virtual environments
+**/.venv/
+
+# Django
+*.pyc
+**/__pycache__/
+*.sqlite3
+
+# Node / Angular
+node_modules/
+dist/
+
+# Docker
+*.log
+
+# IDE
+.vscode/
+.idea/
