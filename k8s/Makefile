@@ -893,47 +893,76 @@ deploy-from-scratch: check-k8s ## Despliega todo desde cero: elimina, construye 
 	@pkill -f "kubectl port-forward" 2>/dev/null || true
 	@sleep 2
 	@bash -c '\
+		set +e; \
 		# Frontend: 80 -> 4200 \
 		echo "$(CYAN)Configurando port-forward para frontend...$(NC)"; \
-		kubectl port-forward svc/frontend 4200:80 > /dev/null 2>&1 & \
-		echo "$$!" > /tmp/frontend-port-forward.pid; \
-		sleep 1; \
+		if kubectl get svc frontend >/dev/null 2>&1; then \
+			nohup kubectl port-forward svc/frontend 4200:80 > /tmp/frontend-port-forward.log 2>&1 & \
+			echo $$! > /tmp/frontend-port-forward.pid; \
+			sleep 1; \
+		else \
+			echo "$(YELLOW)⚠ Servicio frontend no encontrado, omitiendo port-forward$(NC)"; \
+		fi; \
 		# API Gateway: 8080 -> 8080 \
 		echo "$(CYAN)Configurando port-forward para api-gateway...$(NC)"; \
-		kubectl port-forward svc/api-gateway 8080:8080 > /dev/null 2>&1 & \
-		echo "$$!" > /tmp/api-gateway-port-forward.pid; \
-		sleep 1; \
+		if kubectl get svc api-gateway >/dev/null 2>&1; then \
+			nohup kubectl port-forward svc/api-gateway 8080:8080 > /tmp/api-gateway-port-forward.log 2>&1 & \
+			echo $$! > /tmp/api-gateway-port-forward.pid; \
+			sleep 1; \
+		else \
+			echo "$(YELLOW)⚠ Servicio api-gateway no encontrado, omitiendo port-forward$(NC)"; \
+		fi; \
 		# Clinical Service: 3000 -> 3000 \
 		echo "$(CYAN)Configurando port-forward para clinical-service...$(NC)"; \
-		kubectl port-forward svc/clinical-service 3000:3000 > /dev/null 2>&1 & \
-		echo "$$!" > /tmp/clinical-service-port-forward.pid; \
-		sleep 1; \
+		if kubectl get svc clinical-service >/dev/null 2>&1; then \
+			nohup kubectl port-forward svc/clinical-service 3000:3000 > /tmp/clinical-service-port-forward.log 2>&1 & \
+			echo $$! > /tmp/clinical-service-port-forward.pid; \
+			sleep 1; \
+		else \
+			echo "$(YELLOW)⚠ Servicio clinical-service no encontrado, omitiendo port-forward$(NC)"; \
+		fi; \
 		# Genomic Service: 8001 -> 8001 \
 		echo "$(CYAN)Configurando port-forward para genomic-service...$(NC)"; \
-		kubectl port-forward svc/genomic-service 8001:8001 > /dev/null 2>&1 & \
-		echo "$$!" > /tmp/genomic-service-port-forward.pid; \
-		sleep 2; \
+		if kubectl get svc genomic-service >/dev/null 2>&1; then \
+			nohup kubectl port-forward svc/genomic-service 8001:8001 > /tmp/genomic-service-port-forward.log 2>&1 & \
+			echo $$! > /tmp/genomic-service-port-forward.pid; \
+			sleep 2; \
+		else \
+			echo "$(YELLOW)⚠ Servicio genomic-service no encontrado, omitiendo port-forward$(NC)"; \
+		fi; \
 		# Verificar que todos los port-forwards estén activos \
 		ALL_ACTIVE=true; \
-		if ! ps -p $$(cat /tmp/frontend-port-forward.pid 2>/dev/null) > /dev/null 2>&1; then \
-			echo "$(YELLOW)⚠ Port-forward de frontend no se pudo iniciar$(NC)"; \
-			ALL_ACTIVE=false; \
+		if [ -f /tmp/frontend-port-forward.pid ]; then \
+			if ! ps -p $$(cat /tmp/frontend-port-forward.pid 2>/dev/null) > /dev/null 2>&1; then \
+				echo "$(YELLOW)⚠ Port-forward de frontend no se pudo iniciar$(NC)"; \
+				ALL_ACTIVE=false; \
+			fi; \
 		fi; \
-		if ! ps -p $$(cat /tmp/api-gateway-port-forward.pid 2>/dev/null) > /dev/null 2>&1; then \
-			echo "$(YELLOW)⚠ Port-forward de api-gateway no se pudo iniciar$(NC)"; \
-			ALL_ACTIVE=false; \
+		if [ -f /tmp/api-gateway-port-forward.pid ]; then \
+			if ! ps -p $$(cat /tmp/api-gateway-port-forward.pid 2>/dev/null) > /dev/null 2>&1; then \
+				echo "$(YELLOW)⚠ Port-forward de api-gateway no se pudo iniciar$(NC)"; \
+				ALL_ACTIVE=false; \
+			fi; \
 		fi; \
-		if ! ps -p $$(cat /tmp/clinical-service-port-forward.pid 2>/dev/null) > /dev/null 2>&1; then \
-			echo "$(YELLOW)⚠ Port-forward de clinical-service no se pudo iniciar$(NC)"; \
-			ALL_ACTIVE=false; \
+		if [ -f /tmp/clinical-service-port-forward.pid ]; then \
+			if ! ps -p $$(cat /tmp/clinical-service-port-forward.pid 2>/dev/null) > /dev/null 2>&1; then \
+				echo "$(YELLOW)⚠ Port-forward de clinical-service no se pudo iniciar$(NC)"; \
+				ALL_ACTIVE=false; \
+			fi; \
 		fi; \
-		if ! ps -p $$(cat /tmp/genomic-service-port-forward.pid 2>/dev/null) > /dev/null 2>&1; then \
-			echo "$(YELLOW)⚠ Port-forward de genomic-service no se pudo iniciar$(NC)"; \
-			ALL_ACTIVE=false; \
+		if [ -f /tmp/genomic-service-port-forward.pid ]; then \
+			if ! ps -p $$(cat /tmp/genomic-service-port-forward.pid 2>/dev/null) > /dev/null 2>&1; then \
+				echo "$(YELLOW)⚠ Port-forward de genomic-service no se pudo iniciar$(NC)"; \
+				ALL_ACTIVE=false; \
+			fi; \
 		fi; \
 		if [ "$$ALL_ACTIVE" = "true" ]; then \
 			echo "$(GREEN)✓ Todos los port-forwards están activos en segundo plano$(NC)"; \
-		fi'
+		else \
+			echo "$(YELLOW)⚠ Algunos port-forwards no se pudieron iniciar. Puedes iniciarlos manualmente con:$(NC)"; \
+			echo "$(CYAN)  kubectl port-forward svc/<servicio> <puerto-local>:<puerto-servicio>$(NC)"; \
+		fi; \
+		exit 0'
 	@echo ""
 	@echo "$(CYAN)Información de acceso:$(NC)"
 	@echo "  $(GREEN)Frontend:$(NC) http://localhost:4200"
