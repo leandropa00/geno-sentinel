@@ -19,6 +19,10 @@
 		{
 			"name": "genomic-service",
 			"path": "genomic-service"
+		},
+		{
+			"name": "frontend",
+			"path": "frontend"
 		}
 	],
 	"settings": {}
