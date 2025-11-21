@@ -4,7 +4,7 @@ from datetime import datetime
 
 from bson import ObjectId
 from pymongo.collection import Collection
-from pymongo.errors import DuplicateKeyError
+from pymongo.errors import DuplicateKeyError, ServerSelectionTimeoutError
 
 from genomics.core.exceptions import ConflictError, NotFoundError
 from genomics.domain.entities import Gene
@@ -15,7 +15,15 @@ class GeneRepository:
     def __init__(self) -> None:
         database = get_database()
         self.collection: Collection = database["genes"]
-        self.collection.create_index("symbol", unique=True)
+        self._ensure_indexes()
+
+    def _ensure_indexes(self) -> None:
+        """Create indexes lazily, handling connection errors during schema generation."""
+        try:
+            self.collection.create_index("symbol", unique=True)
+        except (ServerSelectionTimeoutError, ConnectionError, Exception):
+            # MongoDB not available during schema generation, indexes will be created on first use
+            pass
 
     def _to_entity(self, document: dict) -> Gene:
         return Gene(

@@ -9,7 +9,10 @@ from pymongo import MongoClient
 
 @lru_cache
 def get_mongo_client() -> MongoClient[Any]:
-    return MongoClient(settings.MONGO_URI, serverSelectionTimeoutMS=2000)
+    # Use a reasonable timeout for actual operations
+    # The connection is lazy, so this won't block during schema generation
+    # Repositories handle connection errors gracefully during initialization
+    return MongoClient(settings.MONGO_URI, serverSelectionTimeoutMS=5000)
 
 
 def get_database():  # type: ignore[return-type]

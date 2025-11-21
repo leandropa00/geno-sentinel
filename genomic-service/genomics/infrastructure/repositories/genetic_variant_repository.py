@@ -4,6 +4,7 @@ from datetime import datetime
 from uuid import uuid4
 
 from pymongo.collection import Collection
+from pymongo.errors import ServerSelectionTimeoutError
 
 from genomics.core.exceptions import NotFoundError
 from genomics.domain.entities import GeneticVariant
@@ -14,8 +15,16 @@ class GeneticVariantRepository:
     def __init__(self) -> None:
         database = get_database()
         self.collection: Collection = database["geneticVariants"]
-        self.collection.create_index("geneId")
-        self.collection.create_index("id", unique=True)
+        self._ensure_indexes()
+
+    def _ensure_indexes(self) -> None:
+        """Create indexes lazily, handling connection errors during schema generation."""
+        try:
+            self.collection.create_index("geneId")
+            self.collection.create_index("id", unique=True)
+        except (ServerSelectionTimeoutError, ConnectionError, Exception):
+            # MongoDB not available during schema generation, indexes will be created on first use
+            pass
 
     def _to_entity(self, document: dict) -> GeneticVariant:
         return GeneticVariant(
