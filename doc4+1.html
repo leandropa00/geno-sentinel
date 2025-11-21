@@ -263,6 +263,13 @@
             line-height: 1.8;
         }
 
+        /* Use Case Diagram Styles */
+        .use-case-diagram {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.875rem;
+            line-height: 1.6;
+        }
+
         /* Highlight Boxes */
         .info-box {
             background-color: #dbeafe;
@@ -1151,6 +1158,308 @@
                 </div>
             </section>
 
+            <!-- Diagramas de Casos de Uso -->
+            <section id="diagramas-casos-uso" class="section">
+                <h3>6. Diagramas de Casos de Uso</h3>
+
+                <h4>6.1 Diagrama General de Casos de Uso del Sistema</h4>
+                <p>
+                    Este diagrama muestra todos los casos de uso principales del sistema Geno Sentinel 
+                    y los actores que interactúan con ellos.
+                </p>
+                <div class="diagram-container">
+                    <pre class="use-case-diagram"><code>                    ┌─────────────────────────────────────────────┐
+                    │         GENO SENTINEL SYSTEM                │
+                    │                                             │
+                    │  ┌──────────────────────────────────────┐   │
+                    │  │      Autenticación                   │   │
+                    │  │  • Iniciar Sesión                    │   │
+                    │  │  • Cerrar Sesión                     │   │
+                    │  │  • Verificar Estado                  │   │
+                    │  └──────────────────────────────────────┘   │
+                    │                                             │
+                    │  ┌──────────────────────────────────────┐   │
+                    │  │   Gestión de Pacientes               │   │
+                    │  │  • Registrar Paciente                │   │
+                    │  │  • Consultar Pacientes               │   │
+                    │  │  • Actualizar Paciente               │   │
+                    │  │  • Desactivar Paciente               │   │
+                    │  │  • Consultar por Estado              │   │
+                    │  └──────────────────────────────────────┘   │
+                    │                                             │
+                    │  ┌──────────────────────────────────────┐   │
+                    │  │   Gestión de Tipos de Tumor          │   │
+                    │  │  • Crear Tipo de Tumor               │   │
+                    │  │  • Consultar Tipos de Tumor          │   │
+                    │  │  • Actualizar Tipo de Tumor          │   │
+                    │  │  • Eliminar Tipo de Tumor            │   │
+                    │  └──────────────────────────────────────┘   │
+                    │                                             │
+                    │  ┌──────────────────────────────────────┐   │
+                    │  │   Gestión de Historias Clínicas      │   │
+                    │  │  • Crear Historia Clínica            │   │
+                    │  │  • Consultar Historias Clínicas      │   │
+                    │  │  • Consultar por Paciente            │   │
+                    │  │  • Actualizar Historia Clínica       │   │
+                    │  │  • Eliminar Historia Clínica         │   │
+                    │  └──────────────────────────────────────┘   │
+                    │                                             │
+                    │  ┌─────────────────────────────────────┐    │
+                    │  │   Gestión de Genes                  │    │
+                    │  │  • Crear Gen                        │    │
+                    │  │  • Consultar Genes                  │    │
+                    │  │  • Actualizar Gen                   │    │
+                    │  │  • Eliminar Gen                     │    │
+                    │  └─────────────────────────────────────┘    │
+                    │                                             │
+                    │  ┌─────────────────────────────────────┐    │
+                    │  │   Gestión de Variantes Genéticas    │    │
+                    │  │  • Crear Variante                   │    │
+                    │  │  • Consultar Variantes              │    │
+                    │  │  • Consultar por Gen                │    │
+                    │  │  • Actualizar Variante              │    │
+                    │  │  • Eliminar Variante                │    │
+                    │  └─────────────────────────────────────┘    │
+                    │                                             │
+                    │  ┌─────────────────────────────────────┐    │
+                    │  │   Gestión de Reportes               │    │
+                    │  │  • Crear Reporte de Variante        │    │
+                    │  │  • Consultar Reportes               │    │
+                    │  │  • Consultar por Paciente           │    │
+                    │  │  • Consultar por Variante           │    │
+                    │  │  • Actualizar Reporte               │    │
+                    │  │  • Eliminar Reporte                 │    │
+                    │  └─────────────────────────────────────┘    │
+                    │                                             │
+                    │  ┌─────────────────────────────────────┐    │
+                    │  │   Monitoreo y Salud                 │    │
+                    │  │  • Health Check                     │    │
+                    │  │  • Verificar Estado de Servicios    │    │
+                    │  └─────────────────────────────────────┘    │
+                    └─────────────────────────────────────────────┘
+                              │                    │
+                              │                    │
+                    ┌─────────┴─────────┐  ┌───────┴──────────┐
+                    │                   │  │                  │
+            ┌───────▼────────┐   ┌──────▼──▼────┐     ┌───────▼────────┐
+            │   Médico/      │   │  Genetista/  │     │   Sistema de   │
+            │   Clínico      │   │  Investigador│     │   Monitoreo    │
+            └────────────────┘   └──────────────┘     └────────────────┘</code></pre>
+                </div>
+
+                <h4>6.2 Diagrama de Casos de Uso - Autenticación</h4>
+                <p>
+                    Casos de uso relacionados con la autenticación y autorización en el sistema.
+                </p>
+                <div class="diagram-container">
+                    <pre class="use-case-diagram"><code>                    ┌─────────────────────────────────────┐
+                    │      API GATEWAY                    │
+                    │                                     │
+                    │  ┌───────────────────────────────┐  │
+                    │  │  Iniciar Sesión               │  │
+                    │  └───────────────────────────────┘  │
+                    │            │                        │
+                    │  ┌─────────▼─────────────────────┐  │
+                    │  │  Generar Token JWT            │  │
+                    │  └───────────────────────────────┘  │
+                    │            │                        │
+                    │  ┌─────────▼─────────────────────┐  │
+                    │  │  Validar Token JWT            │  │
+                    │  └───────────────────────────────┘  │
+                    │            │                        │
+                    │  ┌─────────▼─────────────────────┐  │
+                    │  │  Verificar Estado             │  │
+                    │  └───────────────────────────────┘  │
+                    │            │                        │
+                    │  ┌─────────▼─────────────────────┐  │
+                    │  │  Cerrar Sesión                │  │
+                    │  └───────────────────────────────┘  │
+                    └─────────────────────────────────────┘
+                              │
+                              │
+                    ┌─────────▼─────────┐
+                    │                   │
+                    │   Usuario         │
+                    │   (Médico/        │
+                    │    Clínico/       │
+                    │    Genetista)     │
+                    │                   │
+                    └───────────────────┘</code></pre>
+                </div>
+
+                <h4>6.3 Diagrama de Casos de Uso - Clinical Service</h4>
+                <p>
+                    Casos de uso del microservicio clínico para la gestión de pacientes, tipos de tumor 
+                    e historias clínicas.
+                </p>
+                <div class="diagram-container">
+                    <pre class="use-case-diagram"><code>                    ┌─────────────────────────────────────────────┐
+                    │      CLINICAL SERVICE                      │
+                    │                                            │
+                    │  ┌───────────────────────────────────────┐ │
+                    │  │    Gestión de Pacientes               │ │
+                    │  │                                       │ │
+                    │  │  • Registrar Paciente                 │ │
+                    │  │  • Consultar Todos los Pacientes      │ │
+                    │  │  • Consultar Paciente por ID          │ │
+                    │  │  • Actualizar Datos del Paciente      │ │
+                    │  │  • Desactivar Paciente                │ │
+                    │  │  • Consultar Pacientes por Estado     │ │
+                    │  └───────────────────────────────────────┘ │
+                    │                                            │
+                    │  ┌───────────────────────────────────────┐ │
+                    │  │    Gestión de Tipos de Tumor          │ │
+                    │  │                                       │ │
+                    │  │  • Crear Tipo de Tumor                │ │
+                    │  │  • Consultar Todos los Tipos          │ │
+                    │  │  • Consultar Tipo por ID              │ │
+                    │  │  • Actualizar Tipo de Tumor           │ │
+                    │  │  • Eliminar Tipo de Tumor             │ │
+                    │  └───────────────────────────────────────┘ │
+                    │                                            │
+                    │  ┌───────────────────────────────────────┐ │
+                    │  │    Gestión de Historias Clínicas      │ │
+                    │  │                                       │ │
+                    │  │  • Crear Historia Clínica             │ │
+                    │  │  • Consultar Todas las Historias      │ │
+                    │  │  • Consultar Historia por ID          │ │
+                    │  │  • Consultar Historias por Paciente   │ │
+                    │  │  • Actualizar Historia Clínica        │ │
+                    │  │  • Eliminar Historia Clínica          │ │
+                    │  └───────────────────────────────────────┘ │
+                    └────────────────────────────────────────────┘
+                              │
+                              │
+                    ┌─────────▼─────────┐
+                    │                   │
+                    │   Médico/         │
+                    │   Clínico         │
+                    │                   │
+                    └───────────────────┘</code></pre>
+                </div>
+
+                <h4>6.4 Diagrama de Casos de Uso - Genomic Service</h4>
+                <p>
+                    Casos de uso del microservicio genómico para la gestión de genes, variantes genéticas 
+                    y reportes de pacientes.
+                </p>
+                <div class="diagram-container">
+                    <pre class="use-case-diagram"><code>                    ┌─────────────────────────────────────────────┐
+                    │      GENOMIC SERVICE                       │
+                    │                                            │
+                    │  ┌───────────────────────────────────────┐ │
+                    │  │    Gestión de Genes                   │ │
+                    │  │                                       │ │
+                    │  │  • Crear Gen                          │ │
+                    │  │  • Consultar Todos los Genes          │ │
+                    │  │  • Consultar Gen por ID               │ │
+                    │  │  • Actualizar Gen                     │ │
+                    │  │  • Eliminar Gen                       │ │
+                    │  └───────────────────────────────────────┘ │
+                    │                                            │
+                    │  ┌───────────────────────────────────────┐ │
+                    │  │    Gestión de Variantes Genéticas     │ │
+                    │  │                                       │ │
+                    │  │  • Crear Variante Genética            │ │
+                    │  │  • Consultar Todas las Variantes      │ │
+                    │  │  • Consultar Variante por ID          │ │
+                    │  │  • Consultar Variantes por Gen        │ │
+                    │  │  • Actualizar Variante                │ │
+                    │  │  • Eliminar Variante                  │ │
+                    │  └───────────────────────────────────────┘ │
+                    │                                            │
+                    │  ┌───────────────────────────────────────┐ │
+                    │  │    Gestión de Reportes                │ │
+                    │  │                                       │ │
+                    │  │  • Crear Reporte de Variante          │ │
+                    │  │  • Consultar Todos los Reportes       │ │
+                    │  │  • Consultar Reporte por ID           │ │
+                    │  │  • Consultar Reportes por Paciente    │ │
+                    │  │  • Consultar Reportes por Variante    │ │
+                    │  │  • Actualizar Reporte                 │ │
+                    │  │  • Eliminar Reporte                   │ │
+                    │  └───────────────────────────────────────┘ │
+                    │                                            │
+                    │  ┌───────────────────────────────────────┐ │
+                    │  │    Integración con Clinical Service   │ │
+                    │  │                                       │ │
+                    │  │  • Validar Existencia de Paciente     │ │
+                    │  │  • Obtener Datos del Paciente         │ │
+                    │  └───────────────────────────────────────┘ │
+                    └────────────────────────────────────────────┘
+                              │
+                              │
+                    ┌─────────▼─────────┐
+                    │                   │
+                    │   Genetista/      │
+                    │   Investigador/   │
+                    │   Médico          │
+                    │                   │
+                    └───────────────────┘</code></pre>
+                </div>
+
+                <h3>Descripción de Actores</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Actor</th>
+                            <th>Descripción</th>
+                            <th>Casos de Uso Principales</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Médico/Clínico</strong></td>
+                            <td>Profesional de la salud que gestiona información clínica de pacientes oncológicos</td>
+                            <td>
+                                • Gestión de pacientes<br>
+                                • Gestión de tipos de tumor<br>
+                                • Gestión de historias clínicas<br>
+                                • Consulta de reportes genómicos
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Genetista/Investigador</strong></td>
+                            <td>Profesional especializado en genética que gestiona información genómica</td>
+                            <td>
+                                • Gestión de genes<br>
+                                • Gestión de variantes genéticas<br>
+                                • Gestión de reportes de variantes<br>
+                                • Consulta de información clínica
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Sistema de Monitoreo</strong></td>
+                            <td>Sistema automatizado (Kubernetes) que monitorea el estado de los servicios</td>
+                            <td>
+                                • Health checks<br>
+                                • Verificación de estado de servicios<br>
+                                • Auto-recuperación de fallos
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h4>6.5 Relaciones entre Casos de Uso</h4>
+                <div class="info-box">
+                    <p><strong>Inclusión (Include):</strong></p>
+                    <ul>
+                        <li>Todos los casos de uso requieren <strong>Autenticación</strong> (excepto Health Checks)</li>
+                        <li>Crear Historia Clínica incluye <strong>Validar Paciente</strong> y <strong>Validar Tipo de Tumor</strong></li>
+                        <li>Crear Reporte de Variante incluye <strong>Validar Variante</strong> y <strong>Validar Paciente</strong></li>
+                    </ul>
+                </div>
+
+                <div class="info-box">
+                    <p><strong>Extensión (Extend):</strong></p>
+                    <ul>
+                        <li>Consultar Pacientes puede extenderse con <strong>Filtrar por Estado</strong></li>
+                        <li>Consultar Variantes puede extenderse con <strong>Filtrar por Gen</strong></li>
+                        <li>Consultar Reportes puede extenderse con <strong>Filtrar por Paciente</strong> o <strong>Filtrar por Variante</strong></li>
+                    </ul>
+                </div>
+            </section>
+
             <!-- Conclusiones -->
             <section id="conclusiones" class="section">
                 <h2>Conclusiones</h2>
@@ -1235,9 +1544,6 @@
 
         window.addEventListener('scroll', highlightActiveSection);
         highlightActiveSection(); // Initial call
-
-        // Mobile menu toggle (if needed in future)
-        // Add hamburger menu for mobile devices
     </script>
 </body>
 </html>
