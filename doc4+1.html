@@ -1,0 +1,1244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geno Sentinel - Documentación de Arquitectura (Modelo 4+1)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #1e40af;
+            --accent-color: #3b82f6;
+            --bg-color: #ffffff;
+            --sidebar-bg: #f8fafc;
+            --text-color: #1f2937;
+            --text-light: #6b7280;
+            --border-color: #e5e7eb;
+            --code-bg: #f3f4f6;
+            --code-border: #d1d5db;
+            --diagram-bg: #f9fafb;
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--bg-color);
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar Navigation */
+        .sidebar {
+            width: 280px;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            padding: 2rem 1rem;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--primary-color);
+        }
+
+        .sidebar-header h1 {
+            font-size: 1.25rem;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .sidebar-header p {
+            font-size: 0.875rem;
+            color: var(--text-light);
+        }
+
+        .nav-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .nav-section-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-light);
+            margin-bottom: 0.5rem;
+            padding: 0 0.5rem;
+        }
+
+        .nav-link {
+            display: block;
+            padding: 0.5rem;
+            color: var(--text-color);
+            text-decoration: none;
+            border-radius: 0.375rem;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+        }
+
+        .nav-link:hover {
+            background-color: var(--code-bg);
+            color: var(--primary-color);
+        }
+
+        .nav-link.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .nav-link.level-2 {
+            padding-left: 1.5rem;
+            font-size: 0.8125rem;
+        }
+
+        .nav-link.level-3 {
+            padding-left: 2.5rem;
+            font-size: 0.75rem;
+            color: var(--text-light);
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            padding: 3rem 4rem;
+            max-width: 1200px;
+        }
+
+        .header {
+            margin-bottom: 3rem;
+            padding-bottom: 2rem;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .header .meta {
+            color: var(--text-light);
+            font-size: 0.875rem;
+        }
+
+        .section {
+            margin-bottom: 4rem;
+            scroll-margin-top: 2rem;
+        }
+
+        .section h2 {
+            font-size: 2rem;
+            color: var(--primary-color);
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .section h3 {
+            font-size: 1.5rem;
+            color: var(--secondary-color);
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .section h4 {
+            font-size: 1.25rem;
+            color: var(--text-color);
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .section p {
+            margin-bottom: 1rem;
+            text-align: justify;
+        }
+
+        .section ul, .section ol {
+            margin-left: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .section li {
+            margin-bottom: 0.5rem;
+        }
+
+        /* Code Blocks and Diagrams */
+        pre {
+            background-color: var(--diagram-bg);
+            border: 1px solid var(--code-border);
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            overflow-x: auto;
+            margin: 1.5rem 0;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            white-space: pre;
+        }
+
+        code {
+            background-color: var(--code-bg);
+            padding: 0.125rem 0.375rem;
+            border-radius: 0.25rem;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.875rem;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            background-color: white;
+            box-shadow: var(--shadow);
+            border-radius: 0.5rem;
+            overflow: hidden;
+        }
+
+        table th {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 0.75rem;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        table td {
+            padding: 0.75rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        table tr:hover {
+            background-color: var(--sidebar-bg);
+        }
+
+        /* Badges and Tags */
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-right: 0.5rem;
+        }
+
+        /* Diagram Container */
+        .diagram-container {
+            background-color: var(--diagram-bg);
+            border: 1px solid var(--code-border);
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            overflow-x: auto;
+        }
+
+        /* Sequence Diagrams */
+        .sequence-diagram {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.875rem;
+            line-height: 1.8;
+        }
+
+        /* Highlight Boxes */
+        .info-box {
+            background-color: #dbeafe;
+            border-left: 4px solid var(--primary-color);
+            padding: 1rem;
+            margin: 1.5rem 0;
+            border-radius: 0.25rem;
+        }
+
+        .warning-box {
+            background-color: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 1rem;
+            margin: 1.5rem 0;
+            border-radius: 0.25rem;
+        }
+
+        .success-box {
+            background-color: #d1fae5;
+            border-left: 4px solid #10b981;
+            padding: 1rem;
+            margin: 1.5rem 0;
+            border-radius: 0.25rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .sidebar {
+                width: 240px;
+            }
+
+            .main-content {
+                margin-left: 240px;
+                padding: 2rem 2rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                position: relative;
+                width: 100%;
+                height: auto;
+                max-height: 300px;
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 1.5rem;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+
+        /* Scrollbar Styling */
+        .sidebar::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .sidebar::-webkit-scrollbar-track {
+            background: var(--sidebar-bg);
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background: var(--code-border);
+            border-radius: 4px;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb:hover {
+            background: var(--text-light);
+        }
+
+        /* Print Styles */
+        @media print {
+            .sidebar {
+                display: none;
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 0;
+            }
+
+            .section {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h1>Geno Sentinel</h1>
+                <p>Documentación 4+1</p>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-section-title">Navegación</div>
+                <a href="#introduccion" class="nav-link">Introducción</a>
+                <a href="#vista-logica" class="nav-link">1. Vista Lógica</a>
+                <a href="#vista-proceso" class="nav-link">2. Vista de Proceso</a>
+                <a href="#vista-desarrollo" class="nav-link">3. Vista de Desarrollo</a>
+                <a href="#vista-fisica" class="nav-link">4. Vista Física</a>
+                <a href="#escenarios" class="nav-link">5. Escenarios (+1)</a>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="header">
+                <h1>Documentación de Arquitectura - Geno Sentinel</h1>
+                <div class="meta">
+                    <strong>Modelo 4+1</strong> | Versión 1.0 | 2025
+                </div>
+                <p style="margin-top: 1rem; color: var(--text-light);">
+                    Sistema de Gestión de Datos Clínicos y Genómicos Oncológicos
+                </p>
+            </div>
+
+            <!-- Introducción -->
+            <section id="introduccion" class="section">
+                <h2>Introducción</h2>
+                
+                <h3>Propósito del Documento</h3>
+                <p>
+                    Este documento describe la arquitectura del sistema Geno Sentinel utilizando el modelo de vistas 4+1. 
+                    El sistema es una plataforma de microservicios diseñada para la gestión integral de datos clínicos y genómicos 
+                    en el contexto oncológico.
+                </p>
+
+                <h3>Alcance</h3>
+                <p>El documento cubre:</p>
+                <ul>
+                    <li>Arquitectura de microservicios</li>
+                    <li>Componentes y sus interacciones</li>
+                    <li>Flujos de proceso y comunicación</li>
+                    <li>Estructura de desarrollo</li>
+                    <li>Infraestructura de despliegue</li>
+                    <li>Casos de uso principales</li>
+                </ul>
+
+                <h3>Glosario</h3>
+                <ul>
+                    <li><strong>API Gateway</strong>: Punto de entrada único para todos los servicios</li>
+                    <li><strong>Clinical Service</strong>: Microservicio de gestión clínica</li>
+                    <li><strong>Genomic Service</strong>: Microservicio de análisis genómico</li>
+                    <li><strong>Frontend</strong>: Aplicación web Angular</li>
+                    <li><strong>JWT</strong>: JSON Web Token para autenticación</li>
+                </ul>
+            </section>
+
+            <!-- Vista Lógica -->
+            <section id="vista-logica" class="section">
+                <h2>1. Vista Lógica</h2>
+
+                <h3>1.1 Descripción General</h3>
+                <p>
+                    La vista lógica describe la funcionalidad del sistema desde la perspectiva del usuario final, 
+                    mostrando los componentes principales y sus responsabilidades.
+                </p>
+
+                <h3>1.2 Componentes Principales</h3>
+                <div class="diagram-container">
+                    <pre><code>┌─────────────────────────────────────────────────────────────────┐
+│                        GENO SENTINEL                            │
+│                    Sistema de Microservicios                    │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+        ┌─────────────────────────────────────────┐
+        │         FRONTEND (Angular)              │
+        │  - Interfaz de Usuario                  │
+        │  - Gestión de Genes                     │
+        │  - Gestión de Variantes                 │
+        │  - Gestión de Pacientes                 │
+        │  - Gestión de Reportes                  │
+        └─────────────────┬───────────────────────┘
+                          │ HTTP/REST
+                          ▼
+        ┌─────────────────────────────────────────┐
+        │         API GATEWAY (Spring Boot)       │
+        │  - Autenticación JWT                    │
+        │  - Enrutamiento                         │
+        │  - Autorización                         │
+        │  - Rate Limiting                        │
+        └─────┬───────────────────┬───────────────┘
+              │                   │
+              │ /api/clinical     │ /api/genomic
+              ▼                   ▼
+    ┌─────────────────┐   ┌─────────────────┐
+    │ CLINICAL SERVICE│   │ GENOMIC SERVICE │
+    │   (NestJS)      │   │   (Django)      │
+    │                 │   │                 │
+    │ - Pacientes     │   │ - Genes         │
+    │ - Tipos Tumor   │   │ - Variantes     │
+    │ - Historias     │   │ - Reportes      │
+    └────────┬────────┘   └─────────┬───────┘
+             │                      │
+             │                      │ HTTP
+             │                      │
+             ▼                      ▼
+    ┌─────────────────┐   ┌─────────────────┐
+    │   MySQL         │   │   MongoDB       │
+    │   Database      │   │   Database      │
+    └─────────────────┘   └─────────────────┘</code></pre>
+                </div>
+
+                <h3>1.3 Descomposición de Componentes</h3>
+
+                <h4>1.3.1 Frontend (Angular)</h4>
+                <p><strong>Responsabilidades:</strong></p>
+                <ul>
+                    <li>Presentación de datos al usuario</li>
+                    <li>Gestión de autenticación y sesión</li>
+                    <li>Interacción con API Gateway</li>
+                    <li>Validación de formularios</li>
+                    <li>Navegación y routing</li>
+                </ul>
+
+                <h4>1.3.2 API Gateway (Spring Boot)</h4>
+                <p><strong>Responsabilidades:</strong></p>
+                <ul>
+                    <li>Autenticación centralizada (JWT)</li>
+                    <li>Enrutamiento de peticiones</li>
+                    <li>Validación de tokens</li>
+                    <li>CORS y seguridad</li>
+                    <li>Health checks</li>
+                </ul>
+
+                <h4>1.3.3 Clinical Service (NestJS)</h4>
+                <p><strong>Arquitectura Hexagonal:</strong></p>
+                <div class="diagram-container">
+                    <pre><code>┌─────────────────────────────────────────┐
+│         PRESENTATION LAYER              │
+│  - Controllers (REST)                   │
+│  - DTOs                                 │
+└─────────────────┬───────────────────────┘
+                  │
+┌─────────────────▼───────────────────────┐
+│         APPLICATION LAYER               │
+│  - Use Cases                            │
+│  - DTOs                                 │
+└─────────────────┬───────────────────────┘
+                  │
+┌─────────────────▼───────────────────────┐
+│         DOMAIN LAYER                    │
+│  - Entities                             │
+│  - Repository Interfaces                │
+└─────────────────┬───────────────────────┘
+                  │
+┌─────────────────▼───────────────────────┐
+│         INFRASTRUCTURE LAYER            │
+│  - TypeORM Repositories                 │
+│  - MySQL Connection                     │
+└─────────────────────────────────────────┘</code></pre>
+                </div>
+
+                <p><strong>Entidades de Dominio:</strong></p>
+                <ul>
+                    <li><strong>Patient</strong>: Información personal y estado del paciente</li>
+                    <li><strong>TumorType</strong>: Catálogo de tipos de tumor</li>
+                    <li><strong>ClinicalRecord</strong>: Registros de diagnóstico y tratamiento</li>
+                </ul>
+
+                <h4>1.3.4 Genomic Service (Django)</h4>
+                <p><strong>Arquitectura por Capas:</strong></p>
+                <div class="diagram-container">
+                    <pre><code>┌─────────────────────────────────────────┐
+│         PRESENTATION LAYER              │
+│  - ViewSets (DRF)                       │
+│  - Serializers                          │
+│  - Routers                              │
+└─────────────────┬───────────────────────┘
+                  │
+┌─────────────────▼───────────────────────┐
+│         APPLICATION LAYER               │
+│  - Services                             │
+│  - DTOs                                 │
+└─────────────────┬───────────────────────┘
+                  │
+┌─────────────────▼───────────────────────┐
+│         DOMAIN LAYER                    │
+│  - Entities (dataclasses)               │
+└─────────────────┬───────────────────────┘
+                  │
+┌─────────────────▼───────────────────────┐
+│         INFRASTRUCTURE LAYER            │
+│  - MongoDB Repositories                 │
+│  - Clinical API Client                  │
+└─────────────────────────────────────────┘</code></pre>
+                </div>
+
+                <h3>1.4 Relaciones entre Componentes</h3>
+                <div class="diagram-container">
+                    <pre><code>┌──────────────┐         ┌──────────────┐
+│   Frontend   │────────▶│ API Gateway  │
+└──────────────┘         └──────┬───────┘
+                                │
+                    ┌───────────┴───────────┐
+                    │                       │
+                    ▼                       ▼
+            ┌──────────────┐       ┌──────────────┐
+            │   Clinical   │       │   Genomic    │
+            │   Service    │◀──────│   Service    │
+            └──────┬───────┘       └──────┬───────┘
+                   │                      │
+                   ▼                      ▼
+            ┌──────────────┐       ┌──────────────┐
+            │    MySQL     │       │   MongoDB    │
+            └──────────────┘       └──────────────┘</code></pre>
+                </div>
+
+                <h3>1.5 Modelo de Datos</h3>
+
+                <h4>1.5.1 Clinical Service - Modelo Relacional (MySQL)</h4>
+                <div class="diagram-container">
+                    <pre><code>┌─────────────────────────────────┐
+│           PATIENT               │
+├─────────────────────────────────┤
+│ id (PK, UUID)                   │
+│ firstName                       │
+│ lastName                        │
+│ birthDate                       │
+│ gender (M/F/O)                  │
+│ status (Activo/Seguimiento/     │
+│         Inactivo)               │
+│ createdAt                       │
+│ updatedAt                       │
+└─────────────────────────────────┘
+              │
+              │ 1:N
+              ▼
+┌─────────────────────────────────┐
+│      CLINICAL_RECORD            │
+├─────────────────────────────────┤
+│ id (PK, UUID)                   │
+│ patientId (FK)                  │
+│ tumorTypeId (FK)                │
+│ diagnosisDate                   │
+│ stage                           │
+│ treatmentProtocol               │
+│ createdAt                       │
+│ updatedAt                       │
+└─────────────────────────────────┘
+              │
+              │ N:1
+              ▼
+┌─────────────────────────────────┐
+│         TUMOR_TYPE              │
+├─────────────────────────────────┤
+│ id (PK, UUID)                   │
+│ name                            │
+│ description                     │
+│ icd10Code                       │
+│ createdAt                       │
+│ updatedAt                       │
+└─────────────────────────────────┘</code></pre>
+                </div>
+
+                <h4>1.5.2 Genomic Service - Modelo Documental (MongoDB)</h4>
+                <div class="diagram-container">
+                    <pre><code>┌─────────────────────────────────┐
+│            GENE                 │
+├─────────────────────────────────┤
+│ _id (ObjectId)                  │
+│ symbol (String, unique)         │
+│ fullName (String)               │
+│ functionSummary (String)        │
+│ createdAt (DateTime)            │
+│ updatedAt (DateTime)            │
+└─────────────────────────────────┘
+              │
+              │ 1:N
+              ▼
+┌─────────────────────────────────┐
+│      GENETIC_VARIANT            │
+├─────────────────────────────────┤
+│ _id (ObjectId)                  │
+│ geneId (ObjectId, FK)           │
+│ chromosome (String)             │
+│ position (Integer)              │
+│ referenceBase (String)          │
+│ alternateBase (String)          │
+│ impact (String)                 │
+│ createdAt (DateTime)            │
+│ updatedAt (DateTime)            │
+└─────────────────────────────────┘
+              │
+              │ 1:N
+              ▼
+┌─────────────────────────────────┐
+│   PATIENT_VARIANT_REPORT        │
+├─────────────────────────────────┤
+│ _id (ObjectId)                  │
+│ patientId (String, external)    │
+│ variantId (ObjectId, FK)        │
+│ detectionDate (DateTime)        │
+│ alleleFrequency (Float)         │
+│ createdAt (DateTime)            │
+│ updatedAt (DateTime)            │
+└─────────────────────────────────┘</code></pre>
+                </div>
+            </section>
+
+            <!-- Vista de Proceso -->
+            <section id="vista-proceso" class="section">
+                <h2>2. Vista de Proceso</h2>
+
+                <h3>2.1 Descripción General</h3>
+                <p>
+                    La vista de proceso describe los flujos de ejecución, comunicación entre procesos 
+                    y sincronización de actividades en el sistema.
+                </p>
+
+                <h3>2.2 Flujo de Autenticación</h3>
+                <div class="diagram-container">
+                    <pre class="sequence-diagram"><code>┌─────────┐
+│ Usuario │
+└────┬────┘
+     │ 1. POST /api/auth/login
+     │    {username, password}
+     ▼
+┌─────────────────┐
+│  API Gateway    │
+│  AuthController │
+└────┬────────────┘
+     │ 2. Validar credenciales
+     │    (en memoria)
+     │
+     │ 3. Generar JWT
+     │    (firmado con JWT_SECRET)
+     ▼
+┌─────────────────┐
+│  Usuario        │
+│  (recibe token) │
+└─────────────────┘</code></pre>
+                </div>
+
+                <h3>2.3 Flujo de Consulta de Pacientes</h3>
+                <div class="diagram-container">
+                    <pre class="sequence-diagram"><code>┌─────────┐
+│Frontend │
+└────┬────┘
+     │ 1. GET /api/clinical/patients
+     │    Header: Authorization: Bearer &lt;token&gt;
+     ▼
+┌─────────────────┐
+│  API Gateway    │
+│  JwtFilter      │
+└────┬────────────┘
+     │ 2. Validar JWT
+     │    - Verificar firma
+     │    - Verificar expiración
+     │
+     │ 3. Si válido, enrutar a
+     │    /api/clinical/**
+     │    → StripPrefix=2
+     │    → /patients
+     ▼
+┌──────────────────┐
+│ Clinical Service │
+│ PatientController│
+└────┬─────────────┘
+     │ 4. Ejecutar Use Case
+     │    PatientUseCases.list()
+     │
+     │ 5. Consultar repositorio
+     │    PatientRepository.findAll()
+     ▼
+┌─────────────────┐
+│     MySQL       │
+│  Patient Table  │
+└────┬────────────┘
+     │ 6. SELECT * FROM patients
+     │
+     │ 7. Retornar resultados
+     │    (Entity → DTO)
+     ▼
+┌─────────┐
+│Frontend │
+│(muestra)│
+└─────────┘</code></pre>
+                </div>
+
+                <h3>2.4 Flujo de Creación de Reporte de Variante</h3>
+                <div class="diagram-container">
+                    <pre class="sequence-diagram"><code>┌─────────┐
+│Frontend │
+└────┬────┘
+     │ 1. POST /api/genomic/patient-variant-reports
+     │    {
+     │      patientId: "uuid",
+     │      variantId: "objectid",
+     │      detectionDate: "2024-01-01",
+     │      alleleFrequency: 0.45
+     │    }
+     ▼
+┌─────────────────┐
+│  API Gateway    │
+│  (valida JWT)   │
+└────┬────────────┘
+     │ 2. Enrutar a Genomic Service
+     ▼
+┌─────────────────┐
+│ Genomic Service │
+│ PatientVariant  │
+│ ReportViewSet   │
+└────┬────────────┘
+     │ 3. Validar serializer
+     │    CreatePatientVariantReportDto
+     │
+     │ 4. Llamar servicio
+     │    PatientVariantReportService.create()
+     │
+     │ 5. Validar variante existe
+     │    variantRepository.get_by_id()
+     ▼
+┌─────────────────┐
+│   MongoDB       │
+│ genetic_variants│
+└────┬────────────┘
+     │ 6. Buscar variante
+     │
+     │ 7. Validar paciente existe
+     │    clinicalClient.get_patient_summary()
+     ▼
+┌──────────────────┐
+│ Clinical Service │
+│ PatientController│
+└────┬─────────────┘
+     │ 8. GET /patients/{id}
+     │
+     │ 9. Retornar datos paciente
+     ▼
+┌─────────────────┐
+│ Genomic Service │
+│ (continúa)      │
+└────┬────────────┘
+     │ 10. Si paciente válido,
+     │     crear reporte
+     │     reportRepository.create()
+     ▼
+┌─────────────────┐
+│   MongoDB       │
+│patient_variant_ │
+│   reports       │
+└────┬────────────┘
+     │ 11. Insertar documento
+     │
+     │ 12. Retornar reporte creado
+     ▼
+┌─────────┐
+│Frontend │
+│(muestra)│
+└─────────┘</code></pre>
+                </div>
+            </section>
+
+            <!-- Vista de Desarrollo -->
+            <section id="vista-desarrollo" class="section">
+                <h2>3. Vista de Desarrollo</h2>
+
+                <h3>3.1 Descripción General</h3>
+                <p>
+                    La vista de desarrollo describe la organización del código fuente, módulos, 
+                    paquetes y dependencias del sistema.
+                </p>
+
+                <h3>3.2 Estructura del Monorepo</h3>
+                <div class="diagram-container">
+                    <pre><code>geno-sentinel/
+├── api-gateway/              # Spring Boot Gateway
+│   ├── src/
+│   │   └── main/
+│   │       ├── java/com/genosentinel/gateway/
+│   │       └── resources/
+│   ├── pom.xml
+│   └── Dockerfile
+│
+├── clinical-service/         # NestJS Service
+│   ├── src/
+│   │   ├── domain/
+│   │   ├── application/
+│   │   ├── infrastructure/
+│   │   └── presentation/
+│   ├── package.json
+│   └── Dockerfile
+│
+├── genomic-service/          # Django Service
+│   ├── genomics/
+│   ├── genomic_service/
+│   ├── manage.py
+│   ├── requirements.txt
+│   └── Dockerfile
+│
+├── frontend/                 # Angular Application
+│   ├── src/
+│   ├── package.json
+│   └── Dockerfile
+│
+├── k8s/                      # Kubernetes Manifests
+│   ├── api-gateway/
+│   ├── clinical-service/
+│   ├── genomic-service/
+│   └── frontend/
+│
+└── api-collection/           # Bruno API Collection</code></pre>
+                </div>
+
+                <h3>3.3 Tecnologías Utilizadas</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Componente</th>
+                            <th>Tecnología</th>
+                            <th>Versión</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Frontend</td>
+                            <td>Angular</td>
+                            <td>17+</td>
+                        </tr>
+                        <tr>
+                            <td>API Gateway</td>
+                            <td>Spring Boot</td>
+                            <td>3.x</td>
+                        </tr>
+                        <tr>
+                            <td>Clinical Service</td>
+                            <td>NestJS</td>
+                            <td>10.x</td>
+                        </tr>
+                        <tr>
+                            <td>Genomic Service</td>
+                            <td>Django</td>
+                            <td>5.1</td>
+                        </tr>
+                        <tr>
+                            <td>Base de Datos Clínica</td>
+                            <td>MySQL</td>
+                            <td>8.0+</td>
+                        </tr>
+                        <tr>
+                            <td>Base de Datos Genómica</td>
+                            <td>MongoDB</td>
+                            <td>7.0+</td>
+                        </tr>
+                        <tr>
+                            <td>Infraestructura</td>
+                            <td>Kubernetes</td>
+                            <td>-</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Vista Física -->
+            <section id="vista-fisica" class="section">
+                <h2>4. Vista Física</h2>
+
+                <h3>4.1 Descripción General</h3>
+                <p>
+                    La vista física describe la infraestructura de hardware, servidores, redes 
+                    y despliegue del sistema.
+                </p>
+
+                <h3>4.2 Arquitectura de Despliegue en Kubernetes</h3>
+                <div class="diagram-container">
+                    <pre><code>┌─────────────────────────────────────────────────────────────┐
+│                    KUBERNETES CLUSTER                       │
+│                                                             │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │              INGRESS / Load Balancer                 │   │
+│  │         (Exposición Externa - Puerto 80/443)         │   │
+│  └───────────────────────┬──────────────────────────────┘   │
+│                          │                                  │
+│  ┌───────────────────────▼──────────────────────────────┐   │
+│  │              FRONTEND SERVICE                        │   │
+│  │  Deployment: frontend (2 replicas)                   │   │
+│  │  Service: frontend (ClusterIP)                       │   │
+│  │  Image: frontend:latest                              │   │
+│  │  Port: 80 (Nginx)                                    │   │
+│  └──────────────────────────────────────────────────────┘   │
+│                          │                                  │
+│  ┌───────────────────────▼──────────────────────────────┐   │
+│  │              API GATEWAY SERVICE                     │   │
+│  │  Deployment: api-gateway (2 replicas)                │   │
+│  │  Service: api-gateway (ClusterIP)                    │   │
+│  │  Image: api-gateway:latest                           │   │
+│  │  Port: 8080                                          │   │
+│  │  Resources: 512Mi-1Gi RAM, 500m-1000m CPU            │   │
+│  └───────┬───────────────────────────────┬──────────────┘   │
+│          │                               │                  │
+│  ┌───────▼──────────┐         ┌─────────▼──────────────┐    │
+│  │ CLINICAL SERVICE │         │  GENOMIC SERVICE       │    │
+│  │                  │         │                        │    │
+│  │ Deployment:      │         │ Deployment:            │    │
+│  │   clinical-      │         │   genomic-service      │    │
+│  │   service        │         │   (2 replicas)         │    │
+│  │   (2 replicas)   │         │                        │    │
+│  │                  │         │ Service:               │    │
+│  │ Service:         │         │   genomic-service      │    │
+│  │   clinical-      │         │   (ClusterIP)          │    │
+│  │   service        │         │                        │    │
+│  │   (ClusterIP)    │         │ Image:                 │    │
+│  │                  │         │   genomic-service:     │    │
+│  │ Image:           │         │   latest               │    │
+│  │   clinical-      │         │                        │    │
+│  │   service:latest │         │ Port: 8001             │    │
+│  │                  │         │                        │    │
+│  │ Port: 3000       │         │ Resources:             │    │
+│  │                  │         │   256Mi-512Mi RAM      │    │
+│  │ Resources:       │         │   250m-500m CPU        │    │
+│  │   256Mi-512Mi    │         │                        │    │
+│  │   RAM            │         │                        │    │
+│  │   250m-500m CPU  │         │                        │    │
+│  └───────┬──────────┘         └─────────┬──────────────┘    │
+│          │                              │                   │
+│  ┌───────▼──────────┐         ┌─────────▼──────────────┐    │
+│  │   MYSQL          │         │   MONGODB              │    │
+│  │   DATABASE       │         │   DATABASE             │    │
+│  │                  │         │                        │    │
+│  │ StatefulSet:     │         │ StatefulSet:           │    │
+│  │   mysql          │         │   mongodb              │    │
+│  │   (1 replica)    │         │   (1 replica)          │    │
+│  │                  │         │                        │    │
+│  │ Service:         │         │ Service:               │    │
+│  │   mysql          │         │   mongodb              │    │
+│  │   (ClusterIP)    │         │   (ClusterIP)          │    │
+│  │                  │         │                        │    │
+│  │ PVC:             │         │ PVC:                   │    │
+│  │   mysql-pvc      │         │   mongodb-pvc          │    │
+│  │   (10Gi)         │         │   (10Gi)               │    │
+│  │                  │         │                        │    │
+│  │ Port: 3306       │         │ Port: 27017            │    │
+│  └──────────────────┘         └────────────────────────┘    │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘</code></pre>
+                </div>
+
+                <h3>4.3 Componentes de Infraestructura</h3>
+
+                <h4>4.3.1 Frontend</h4>
+                <ul>
+                    <li><strong>Deployment:</strong> 2 réplicas</li>
+                    <li><strong>Imagen:</strong> frontend:latest</li>
+                    <li><strong>Puerto:</strong> 80 (Nginx)</li>
+                    <li><strong>Recursos:</strong> 128Mi-256Mi RAM, 100m-200m CPU</li>
+                </ul>
+
+                <h4>4.3.2 API Gateway</h4>
+                <ul>
+                    <li><strong>Deployment:</strong> 2 réplicas (alta disponibilidad)</li>
+                    <li><strong>Imagen:</strong> api-gateway:latest</li>
+                    <li><strong>Puerto:</strong> 8080</li>
+                    <li><strong>Recursos:</strong> 512Mi-1Gi RAM, 500m-1000m CPU</li>
+                </ul>
+
+                <h4>4.3.3 Clinical Service</h4>
+                <ul>
+                    <li><strong>Deployment:</strong> 2 réplicas</li>
+                    <li><strong>Imagen:</strong> clinical-service:latest</li>
+                    <li><strong>Puerto:</strong> 3000</li>
+                    <li><strong>Recursos:</strong> 256Mi-512Mi RAM, 250m-500m CPU</li>
+                    <li><strong>Base de Datos:</strong> MySQL (StatefulSet, 1 réplica, PVC 10Gi)</li>
+                </ul>
+
+                <h4>4.3.4 Genomic Service</h4>
+                <ul>
+                    <li><strong>Deployment:</strong> 2 réplicas</li>
+                    <li><strong>Imagen:</strong> genomic-service:latest</li>
+                    <li><strong>Puerto:</strong> 8001</li>
+                    <li><strong>Recursos:</strong> 256Mi-512Mi RAM, 250m-500m CPU</li>
+                    <li><strong>Base de Datos:</strong> MongoDB (StatefulSet, 1 réplica, PVC 10Gi)</li>
+                </ul>
+            </section>
+
+            <!-- Escenarios -->
+            <section id="escenarios" class="section">
+                <h2>5. Escenarios (+1)</h2>
+
+                <h3>5.1 Descripción General</h3>
+                <p>
+                    Los escenarios describen casos de uso principales del sistema desde la perspectiva 
+                    del usuario final, validando que la arquitectura soporta los requisitos funcionales.
+                </p>
+
+                <h3>5.2 Escenario 1: Autenticación y Acceso al Sistema</h3>
+                <p><strong>Actor:</strong> Usuario (médico/clínico)</p>
+                <p><strong>Precondiciones:</strong></p>
+                <ul>
+                    <li>Usuario tiene credenciales válidas</li>
+                    <li>Sistema está operativo</li>
+                </ul>
+                <p><strong>Flujo Principal:</strong></p>
+                <ol>
+                    <li>Usuario accede a la aplicación web (Frontend)</li>
+                    <li>Sistema muestra página de login</li>
+                    <li>Usuario ingresa credenciales (username/password)</li>
+                    <li>Frontend envía POST /api/auth/login al API Gateway</li>
+                    <li>API Gateway valida credenciales</li>
+                    <li>API Gateway genera token JWT</li>
+                    <li>Frontend recibe token y lo almacena</li>
+                    <li>Frontend redirige al dashboard</li>
+                    <li>Frontend incluye token en todas las peticiones posteriores</li>
+                </ol>
+
+                <h3>5.3 Escenario 2: Registrar Nuevo Paciente</h3>
+                <p><strong>Actor:</strong> Usuario (médico/clínico)</p>
+                <p><strong>Precondiciones:</strong></p>
+                <ul>
+                    <li>Usuario autenticado</li>
+                    <li>Clinical Service operativo</li>
+                    <li>MySQL disponible</li>
+                </ul>
+                <p><strong>Flujo Principal:</strong></p>
+                <ol>
+                    <li>Usuario navega a "Gestión de Pacientes"</li>
+                    <li>Usuario hace clic en "Nuevo Paciente"</li>
+                    <li>Frontend muestra formulario</li>
+                    <li>Usuario completa datos (nombre, apellido, fecha nacimiento, género, estado)</li>
+                    <li>Usuario envía formulario</li>
+                    <li>Frontend valida datos localmente</li>
+                    <li>Frontend envía POST /api/clinical/patients con token JWT</li>
+                    <li>API Gateway valida token y enruta a Clinical Service</li>
+                    <li>Clinical Service valida DTO</li>
+                    <li>Clinical Service ejecuta use case CreatePatient</li>
+                    <li>Use case crea entidad Patient</li>
+                    <li>Repository persiste en MySQL</li>
+                    <li>Clinical Service retorna paciente creado</li>
+                    <li>Frontend muestra mensaje de éxito</li>
+                    <li>Frontend actualiza lista de pacientes</li>
+                </ol>
+
+                <h3>5.4 Escenario 3: Crear Reporte de Variante Genética</h3>
+                <p><strong>Actor:</strong> Usuario (genetista/clínico)</p>
+                <p><strong>Precondiciones:</strong></p>
+                <ul>
+                    <li>Usuario autenticado</li>
+                    <li>Paciente existe en Clinical Service</li>
+                    <li>Variante genética existe en Genomic Service</li>
+                    <li>Ambos servicios operativos</li>
+                </ul>
+                <p><strong>Flujo Principal:</strong></p>
+                <ol>
+                    <li>Usuario navega a "Reportes de Variantes"</li>
+                    <li>Usuario hace clic en "Nuevo Reporte"</li>
+                    <li>Frontend muestra formulario</li>
+                    <li>Usuario selecciona paciente (consulta lista desde Clinical Service)</li>
+                    <li>Usuario selecciona variante (consulta lista desde Genomic Service)</li>
+                    <li>Usuario completa fecha de detección y frecuencia alélica (VAF)</li>
+                    <li>Usuario envía formulario</li>
+                    <li>Frontend envía POST /api/genomic/patient-variant-reports</li>
+                    <li>API Gateway valida token y enruta a Genomic Service</li>
+                    <li>Genomic Service valida serializer</li>
+                    <li>Genomic Service ejecuta PatientVariantReportService.create()</li>
+                    <li>Servicio valida que variante existe (consulta MongoDB)</li>
+                    <li>Servicio valida que paciente existe (consulta Clinical Service vía HTTP)</li>
+                    <li>Clinical Service retorna datos del paciente</li>
+                    <li>Genomic Service crea entidad PatientVariantReport</li>
+                    <li>Repository persiste en MongoDB</li>
+                    <li>Genomic Service retorna reporte creado con datos enriquecidos</li>
+                    <li>Frontend muestra reporte con información completa</li>
+                </ol>
+
+                <h3>5.5 Validación de Arquitectura</h3>
+                <div class="success-box">
+                    <p><strong>Los escenarios anteriores validan que la arquitectura soporta:</strong></p>
+                    <ul>
+                        <li>Separación de Responsabilidades</li>
+                        <li>Comunicación entre Servicios</li>
+                        <li>Persistencia</li>
+                        <li>Seguridad</li>
+                        <li>Escalabilidad</li>
+                        <li>Resiliencia</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Conclusiones -->
+            <section id="conclusiones" class="section">
+                <h2>Conclusiones</h2>
+
+                <h3>Resumen de la Arquitectura</h3>
+                <p>
+                    Geno Sentinel es un sistema de microservicios diseñado para la gestión de datos clínicos 
+                    y genómicos oncológicos. La arquitectura sigue principios de:
+                </p>
+                <ul>
+                    <li><strong>Separación de responsabilidades:</strong> Cada servicio tiene un dominio específico</li>
+                    <li><strong>Arquitectura hexagonal:</strong> Clinical Service implementa clean architecture</li>
+                    <li><strong>Arquitectura por capas:</strong> Genomic Service sigue separación de capas</li>
+                    <li><strong>API Gateway pattern:</strong> Punto de entrada único con autenticación centralizada</li>
+                    <li><strong>Base de datos por servicio:</strong> MySQL para Clinical, MongoDB para Genomic</li>
+                </ul>
+
+                <h3>Fortalezas</h3>
+                <ul>
+                    <li><strong>Modularidad:</strong> Servicios independientes y desacoplados</li>
+                    <li><strong>Escalabilidad:</strong> Diseño horizontalmente escalable</li>
+                    <li><strong>Seguridad:</strong> Autenticación JWT centralizada</li>
+                    <li><strong>Resiliencia:</strong> Health checks y auto-recuperación</li>
+                    <li><strong>Observabilidad:</strong> Endpoints de health y métricas</li>
+                </ul>
+
+                <h3>Áreas de Mejora</h3>
+                <div class="info-box">
+                    <p><strong>Recomendaciones para producción:</strong></p>
+                    <ul>
+                        <li>Circuit Breaker: Implementar para comunicación entre servicios</li>
+                        <li>Service Mesh: Considerar Istio o Linkerd para observabilidad avanzada</li>
+                        <li>Logging Centralizado: Implementar ELK stack o Loki</li>
+                        <li>Métricas Centralizadas: Implementar Prometheus + Grafana</li>
+                        <li>Tracing Distribuido: Implementar Jaeger o Zipkin</li>
+                        <li>Backup Automático: Implementar backups de bases de datos</li>
+                        <li>Autoscaling: Implementar HPA basado en métricas</li>
+                        <li>API Versioning: Estrategia de versionado de APIs</li>
+                    </ul>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('href').substring(1);
+                const targetElement = document.getElementById(targetId);
+                if (targetElement) {
+                    targetElement.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Highlight active section in navigation
+        const sections = document.querySelectorAll('.section');
+        const navLinks = document.querySelectorAll('.nav-link');
+
+        function highlightActiveSection() {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.clientHeight;
+                if (window.pageYOffset >= sectionTop - 200) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                }
+            });
+        }
+
+        window.addEventListener('scroll', highlightActiveSection);
+        highlightActiveSection(); // Initial call
+
+        // Mobile menu toggle (if needed in future)
+        // Add hamburger menu for mobile devices
+    </script>
+</body>
+</html>
+
