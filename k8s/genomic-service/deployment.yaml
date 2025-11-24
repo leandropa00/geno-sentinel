@@ -5,6 +5,7 @@ metadata:
   namespace: default
   labels:
     app: genomic-service
+    version: v1
 spec:
   replicas: 2
   selector:
@@ -14,40 +15,47 @@ spec:
     metadata:
       labels:
         app: genomic-service
+        version: v1
     spec:
       containers:
       - name: genomic-service
         image: genomic-service:latest
         imagePullPolicy: IfNotPresent
         ports:
-        - containerPort: 8000
-          name: http
+        - name: http
+          containerPort: 8001
+          protocol: TCP
         env:
         - name: DJANGO_SECRET_KEY
           valueFrom:
             secretKeyRef:
               name: genomic-service-secret
               key: DJANGO_SECRET_KEY
-        - name: MONGO_HOST
+        - name: DJANGO_DEBUG
           valueFrom:
             configMapKeyRef:
               name: genomic-service-config
-              key: MONGO_HOST
-        - name: MONGO_PORT
+              key: DJANGO_DEBUG
+        - name: DJANGO_ALLOWED_HOSTS
           valueFrom:
             configMapKeyRef:
               name: genomic-service-config
-              key: MONGO_PORT
+              key: DJANGO_ALLOWED_HOSTS
+        - name: MONGO_URI
+          valueFrom:
+            configMapKeyRef:
+              name: genomic-service-config
+              key: MONGO_URI
         - name: MONGO_DB_NAME
           valueFrom:
             configMapKeyRef:
               name: genomic-service-config
               key: MONGO_DB_NAME
-        - name: DJANGO_SETTINGS_MODULE
+        - name: CLINICAL_SERVICE_BASE_URL
           valueFrom:
             configMapKeyRef:
               name: genomic-service-config
-              key: DJANGO_SETTINGS_MODULE
+              key: CLINICAL_SERVICE_BASE_URL
         resources:
           requests:
             memory: "256Mi"
@@ -57,13 +65,23 @@ spec:
             cpu: "500m"
         livenessProbe:
           httpGet:
-            path: /api/
-            port: 8000
-          initialDelaySeconds: 30
-          periodSeconds: 10
+            path: /health/
+            port: 8001
+          initialDelaySeconds: 40
+          periodSeconds: 30
+          timeoutSeconds: 3
+          failureThreshold: 3
         readinessProbe:
           httpGet:
-            path: /api/
-            port: 8000
+            path: /health/
+            port: 8001
           initialDelaySeconds: 10
-          periodSeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+

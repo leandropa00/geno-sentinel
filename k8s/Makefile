@@ -1,7 +1,7 @@
 .PHONY: help check-k8s diagnose-k8s setup-minikube-docker deploy deploy-all delete delete-all status status-all \
-        logs logs-all port-forward restart restart-all scale wait-all cleanup clinical-service \
-        build-minikube-clinical build-minikube-api-gateway build-minikube-frontend build-all-minikube build-and-deploy-all \
-        deploy-from-scratch fresh-deploy
+        logs logs-all port-forward start-port-forwards stop-port-forwards restart restart-all scale wait-all cleanup clinical-service genomic-service \
+        build-minikube-clinical build-minikube-genomic build-minikube-api-gateway build-minikube-frontend build-all-minikube build-all-docker build-all build-all-if-missing build-all-minikube-if-missing build-all-docker-if-missing build-and-deploy-all \
+        deploy-from-scratch fresh-deploy deploy-clinical deploy-genomic delete-clinical delete-genomic status-clinical status-genomic
 
 # Variables
 NAMESPACE := default
@@ -13,6 +13,11 @@ CLINICAL_IMAGE_NAME := clinical-service
 CLINICAL_IMAGE_TAG := latest
 CLINICAL_SERVICE_LABEL := app=clinical-service
 CLINICAL_MYSQL_LABEL := app=clinical-mysql
+GENOMIC_SERVICE_DIR := ../genomic-service
+GENOMIC_IMAGE_NAME := genomic-service
+GENOMIC_IMAGE_TAG := latest
+GENOMIC_SERVICE_LABEL := app=genomic-service
+GENOMIC_MONGODB_LABEL := app=genomic-mongodb
 API_GATEWAY_DIR := ../api-gateway
 API_GATEWAY_IMAGE_NAME := api-gateway
 API_GATEWAY_IMAGE_TAG := latest
@@ -175,6 +180,8 @@ deploy: check-k8s ## Despliega un servicio específico (uso: make deploy SERVICE
 	@echo "$(GREEN)Desplegando $(SERVICE)...$(NC)"
 	@if [ "$(SERVICE)" = "clinical-service" ]; then \
 		$(MAKE) deploy-clinical; \
+	elif [ "$(SERVICE)" = "genomic-service" ]; then \
+		$(MAKE) deploy-genomic; \
 	else \
 		if [ -f "$(SERVICE)/kustomization.yaml" ]; then \
 			if [ "$(SKIP_VALIDATION)" = "true" ]; then \
@@ -199,6 +206,8 @@ deploy-all: check-k8s ## Despliega todos los servicios disponibles
 			echo "$(CYAN)--- Desplegando $$service ---$(NC)"; \
 			if [ "$$service" = "clinical-service" ]; then \
 				$(MAKE) deploy-clinical || echo "$(YELLOW)Error desplegando $$service$(NC)"; \
+			elif [ "$$service" = "genomic-service" ]; then \
+				$(MAKE) deploy-genomic || echo "$(YELLOW)Error desplegando $$service$(NC)"; \
 			else \
 				if [ -f "$$service/kustomization.yaml" ]; then \
 					if [ "$(SKIP_VALIDATION)" = "true" ]; then \
@@ -242,6 +251,27 @@ deploy-clinical: check-k8s ## Despliega clinical-service y MySQL en orden
 	@kubectl apply -f clinical-service/deployment.yaml
 	@echo "$(GREEN)Despliegue completado!$(NC)"
 
+deploy-genomic: check-k8s ## Despliega genomic-service y MongoDB en orden
+	@echo "$(GREEN)Desplegando MongoDB...$(NC)"
+	@if ! kubectl get pvc genomic-mongodb-pvc >/dev/null 2>&1; then \
+		echo "$(YELLOW)Creando PVC de MongoDB...$(NC)"; \
+		kubectl apply -f genomic-service/mongodb-pvc.yaml; \
+	else \
+		echo "$(YELLOW)PVC de MongoDB ya existe, omitiendo creación$(NC)"; \
+	fi
+	@kubectl apply -f genomic-service/mongodb-configmap.yaml
+	@kubectl apply -f genomic-service/mongodb-secret.yaml
+	@kubectl apply -f genomic-service/mongodb-service.yaml
+	@kubectl apply -f genomic-service/mongodb-deployment.yaml
+	@echo "$(YELLOW)Esperando a que MongoDB esté listo...$(NC)"
+	@kubectl wait --for=condition=ready pod -l $(GENOMIC_MONGODB_LABEL) --timeout=300s || true
+	@echo "$(GREEN)Desplegando Genomic Service...$(NC)"
+	@kubectl apply -f genomic-service/configmap.yaml
+	@kubectl apply -f genomic-service/secret.yaml
+	@kubectl apply -f genomic-service/service.yaml
+	@kubectl apply -f genomic-service/deployment.yaml
+	@echo "$(GREEN)Despliegue completado!$(NC)"
+
 # ============================================
 # ELIMINACIÓN
 # ============================================
@@ -259,6 +289,8 @@ delete: ## Elimina un servicio específico (uso: make delete SERVICE=clinical-se
 	@echo "$(YELLOW)Eliminando $(SERVICE)...$(NC)"
 	@if [ "$(SERVICE)" = "clinical-service" ]; then \
 		$(MAKE) delete-clinical || true; \
+	elif [ "$(SERVICE)" = "genomic-service" ]; then \
+		$(MAKE) delete-genomic || true; \
 	else \
 		if [ -f "$(SERVICE)/kustomization.yaml" ]; then \
 			kubectl delete -k $(SERVICE)/ --ignore-not-found=true; \
@@ -275,6 +307,8 @@ delete-all: ## Elimina todos los servicios
 			echo "$(CYAN)--- Eliminando $$service ---$(NC)"; \
 			if [ "$$service" = "clinical-service" ]; then \
 				$(MAKE) delete-clinical || true; \
+			elif [ "$$service" = "genomic-service" ]; then \
+				$(MAKE) delete-genomic || true; \
 			else \
 				if [ -f "$$service/kustomization.yaml" ]; then \
 					kubectl delete -k $$service/ --ignore-not-found=true || true; \
@@ -299,6 +333,19 @@ delete-clinical: ## Elimina todos los recursos de clinical-service
 	@kubectl delete -f clinical-service/mysql-pvc.yaml --ignore-not-found=true
 	@echo "$(GREEN)Recursos eliminados!$(NC)"
 
+delete-genomic: ## Elimina todos los recursos de genomic-service
+	@echo "$(YELLOW)Eliminando todos los recursos de genomic-service...$(NC)"
+	@kubectl delete -f genomic-service/deployment.yaml --ignore-not-found=true
+	@kubectl delete -f genomic-service/service.yaml --ignore-not-found=true
+	@kubectl delete -f genomic-service/secret.yaml --ignore-not-found=true
+	@kubectl delete -f genomic-service/configmap.yaml --ignore-not-found=true
+	@kubectl delete -f genomic-service/mongodb-deployment.yaml --ignore-not-found=true
+	@kubectl delete -f genomic-service/mongodb-service.yaml --ignore-not-found=true
+	@kubectl delete -f genomic-service/mongodb-secret.yaml --ignore-not-found=true
+	@kubectl delete -f genomic-service/mongodb-configmap.yaml --ignore-not-found=true
+	@kubectl delete -f genomic-service/mongodb-pvc.yaml --ignore-not-found=true
+	@echo "$(GREEN)Recursos eliminados!$(NC)"
+
 # ============================================
 # ESTADO Y VERIFICACIÓN
 # ============================================
@@ -311,6 +358,8 @@ status: ## Muestra el estado de un servicio (uso: make status SERVICE=clinical-s
 	fi
 	@if [ "$(SERVICE)" = "clinical-service" ]; then \
 		$(MAKE) status-clinical; \
+	elif [ "$(SERVICE)" = "genomic-service" ]; then \
+		$(MAKE) status-genomic; \
 	else \
 		echo "$(BLUE)=== Estado de $(SERVICE) ===$(NC)"; \
 		kubectl get all -l app=$(SERVICE) 2>/dev/null || echo "No hay recursos para $(SERVICE)"; \
@@ -323,6 +372,8 @@ status-all: ## Muestra el estado de todos los servicios
 			echo "$(CYAN)--- $$service ---$(NC)"; \
 			if [ "$$service" = "clinical-service" ]; then \
 				$(MAKE) status-clinical 2>/dev/null || echo "  No hay recursos desplegados"; \
+			elif [ "$$service" = "genomic-service" ]; then \
+				$(MAKE) status-genomic 2>/dev/null || echo "  No hay recursos desplegados"; \
 			else \
 				kubectl get all -l app=$$service 2>/dev/null || echo "  No hay recursos desplegados"; \
 			fi; \
@@ -347,6 +398,22 @@ status-clinical: ## Muestra el estado de todos los recursos de clinical-service
 	@echo ""
 	@echo "$(BLUE)=== Estado de PVCs ===$(NC)"
 	@kubectl get pvc clinical-mysql-pvc 2>/dev/null || echo "No hay PVC de MySQL"
+
+status-genomic: ## Muestra el estado de todos los recursos de genomic-service
+	@echo "$(BLUE)=== Estado de Pods ===$(NC)"
+	@kubectl get pods -l $(GENOMIC_SERVICE_LABEL) 2>/dev/null || echo "No hay pods del genomic-service"
+	@kubectl get pods -l $(GENOMIC_MONGODB_LABEL) 2>/dev/null || echo "No hay pods de MongoDB"
+	@echo ""
+	@echo "$(BLUE)=== Estado de Deployments ===$(NC)"
+	@kubectl get deployment genomic-service 2>/dev/null || echo "No hay deployment del genomic-service"
+	@kubectl get deployment genomic-mongodb 2>/dev/null || echo "No hay deployment de MongoDB"
+	@echo ""
+	@echo "$(BLUE)=== Estado de Services ===$(NC)"
+	@kubectl get svc genomic-service 2>/dev/null || echo "No hay service del genomic-service"
+	@kubectl get svc genomic-mongodb 2>/dev/null || echo "No hay service de MongoDB"
+	@echo ""
+	@echo "$(BLUE)=== Estado de PVCs ===$(NC)"
+	@kubectl get pvc genomic-mongodb-pvc 2>/dev/null || echo "No hay PVC de MongoDB"
 
 # ============================================
 # LOGS
@@ -385,6 +452,8 @@ port-forward: ## Port-forward de un servicio (uso: make port-forward SERVICE=cli
 			SVC_PORT=8080; \
 		elif [ "$(SERVICE)" = "clinical-service" ]; then \
 			SVC_PORT=3000; \
+		elif [ "$(SERVICE)" = "genomic-service" ]; then \
+			SVC_PORT=8001; \
 		else \
 			SVC_PORT=3000; \
 		fi; \
@@ -400,6 +469,39 @@ port-forward: ## Port-forward de un servicio (uso: make port-forward SERVICE=cli
 	echo "$(YELLOW)Presiona Ctrl+C para detener$(NC)"; \
 	kubectl port-forward svc/$(SERVICE) $$LOCAL_PORT:$$SVC_PORT 2>/dev/null || \
 	echo "$(RED)Error: No se pudo hacer port-forward$(NC)"'
+
+start-port-forwards: ## Inicia todos los port-forwards en segundo plano
+	@echo "$(GREEN)Iniciando port-forwards en segundo plano...$(NC)"
+	@pkill -f "kubectl port-forward" 2>/dev/null || true
+	@sleep 1
+	@if kubectl get svc frontend >/dev/null 2>&1; then \
+		echo "$(CYAN)Iniciando port-forward para frontend (4200:80)...$(NC)"; \
+		(kubectl port-forward svc/frontend 4200:80 > /tmp/frontend-port-forward.log 2>&1 & echo $$! > /tmp/frontend-port-forward.pid); \
+		sleep 1; \
+	fi
+	@if kubectl get svc api-gateway >/dev/null 2>&1; then \
+		echo "$(CYAN)Iniciando port-forward para api-gateway (8080:8080)...$(NC)"; \
+		(kubectl port-forward svc/api-gateway 8080:8080 > /tmp/api-gateway-port-forward.log 2>&1 & echo $$! > /tmp/api-gateway-port-forward.pid); \
+		sleep 1; \
+	fi
+	@if kubectl get svc clinical-service >/dev/null 2>&1; then \
+		echo "$(CYAN)Iniciando port-forward para clinical-service (3000:3000)...$(NC)"; \
+		(kubectl port-forward svc/clinical-service 3000:3000 > /tmp/clinical-service-port-forward.log 2>&1 & echo $$! > /tmp/clinical-service-port-forward.pid); \
+		sleep 1; \
+	fi
+	@if kubectl get svc genomic-service >/dev/null 2>&1; then \
+		echo "$(CYAN)Iniciando port-forward para genomic-service (8001:8001)...$(NC)"; \
+		(kubectl port-forward svc/genomic-service 8001:8001 > /tmp/genomic-service-port-forward.log 2>&1 & echo $$! > /tmp/genomic-service-port-forward.pid); \
+		sleep 1; \
+	fi
+	@echo "$(GREEN)✓ Port-forwards iniciados en segundo plano$(NC)"
+	@echo "$(CYAN)Para detenerlos, ejecuta:$(NC) $(YELLOW)make stop-port-forwards$(NC)"
+	@echo "$(CYAN)Para ver los logs:$(NC) $(YELLOW)tail -f /tmp/*-port-forward.log$(NC)"
+
+stop-port-forwards: ## Detiene todos los port-forwards
+	@echo "$(YELLOW)Deteniendo todos los port-forwards...$(NC)"
+	@pkill -f "kubectl port-forward" 2>/dev/null && echo "$(GREEN)✓ Port-forwards detenidos$(NC)" || echo "$(YELLOW)No hay port-forwards activos$(NC)"
+	@rm -f /tmp/*-port-forward.pid /tmp/*-port-forward.log 2>/dev/null || true
 
 # ============================================
 # RESTART
@@ -455,6 +557,11 @@ wait-all: ## Espera a que todos los servicios estén listos
 				kubectl wait --for=condition=ready pod -l app=clinical-mysql --timeout=300s 2>/dev/null || echo "$(YELLOW)    MySQL aún no está listo (continuando...)$(NC)"; \
 				echo "$(YELLOW)  Esperando Clinical Service...$(NC)"; \
 				kubectl wait --for=condition=ready pod -l app=$$service --timeout=300s 2>/dev/null || echo "$(YELLOW)    $$service aún no está listo (continuando...)$(NC)"; \
+			elif [ "$$service" = "genomic-service" ]; then \
+				echo "$(YELLOW)  Esperando MongoDB...$(NC)"; \
+				kubectl wait --for=condition=ready pod -l app=genomic-mongodb --timeout=300s 2>/dev/null || echo "$(YELLOW)    MongoDB aún no está listo (continuando...)$(NC)"; \
+				echo "$(YELLOW)  Esperando Genomic Service...$(NC)"; \
+				kubectl wait --for=condition=ready pod -l app=$$service --timeout=300s 2>/dev/null || echo "$(YELLOW)    $$service aún no está listo (continuando...)$(NC)"; \
 			else \
 				kubectl wait --for=condition=ready pod -l app=$$service --timeout=300s 2>/dev/null || echo "$(YELLOW)    $$service aún no está listo (continuando...)$(NC)"; \
 			fi; \
@@ -493,6 +600,10 @@ build-all-minikube: ## Construye todas las imágenes Docker usando el entorno de
 		echo "$(RED)Error: No se encuentra el directorio del servicio en $(CLINICAL_SERVICE_DIR)$(NC)"; \
 		exit 1; \
 	fi
+	@if [ ! -d "$(GENOMIC_SERVICE_DIR)" ]; then \
+		echo "$(RED)Error: No se encuentra el directorio del servicio en $(GENOMIC_SERVICE_DIR)$(NC)"; \
+		exit 1; \
+	fi
 	@if [ ! -d "$(API_GATEWAY_DIR)" ]; then \
 		echo "$(RED)Error: No se encuentra el directorio del servicio en $(API_GATEWAY_DIR)$(NC)"; \
 		exit 1; \
@@ -509,6 +620,11 @@ build-all-minikube: ## Construye todas las imágenes Docker usando el entorno de
 		docker build -f Dockerfile -t $(CLINICAL_IMAGE_NAME):$(CLINICAL_IMAGE_TAG) . && \
 		echo \"$(GREEN)✓ Clinical Service construido$(NC)\" && \
 		echo \"\" && \
+		echo \"$(CYAN)--- Construyendo Genomic Service ---$(NC)\" && \
+		cd $(GENOMIC_SERVICE_DIR) && \
+		docker build -f Dockerfile -t $(GENOMIC_IMAGE_NAME):$(GENOMIC_IMAGE_TAG) . && \
+		echo \"$(GREEN)✓ Genomic Service construido$(NC)\" && \
+		echo \"\" && \
 		echo \"$(CYAN)--- Construyendo API Gateway ---$(NC)\" && \
 		cd $(API_GATEWAY_DIR) && \
 		docker build -f Dockerfile -t $(API_GATEWAY_IMAGE_NAME):$(API_GATEWAY_IMAGE_TAG) . && \
@@ -521,29 +637,79 @@ build-all-minikube: ## Construye todas las imágenes Docker usando el entorno de
 	@echo ""
 	@echo "$(GREEN)✓ Todas las imágenes construidas exitosamente!$(NC)"
 
-build-and-deploy-all: check-k8s ## Construye todas las imágenes y despliega toda la infraestructura
-	@echo "$(GREEN)=== Construyendo imágenes y desplegando infraestructura completa ===$(NC)\n"
-	@$(MAKE) build-all-minikube
+build-all-docker: ## Construye todas las imágenes Docker usando Docker estándar (para Docker Desktop u otros)
+	@if [ ! -d "$(CLINICAL_SERVICE_DIR)" ]; then \
+		echo "$(RED)Error: No se encuentra el directorio del servicio en $(CLINICAL_SERVICE_DIR)$(NC)"; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(GENOMIC_SERVICE_DIR)" ]; then \
+		echo "$(RED)Error: No se encuentra el directorio del servicio en $(GENOMIC_SERVICE_DIR)$(NC)"; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(API_GATEWAY_DIR)" ]; then \
+		echo "$(RED)Error: No se encuentra el directorio del servicio en $(API_GATEWAY_DIR)$(NC)"; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(FRONTEND_DIR)" ]; then \
+		echo "$(RED)Error: No se encuentra el directorio del servicio en $(FRONTEND_DIR)$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)=== Construyendo todas las imágenes con Docker ===$(NC)\n"
+	@echo "$(CYAN)--- Construyendo Clinical Service ---$(NC)"
+	@cd $(CLINICAL_SERVICE_DIR) && \
+		docker build -f Dockerfile -t $(CLINICAL_IMAGE_NAME):$(CLINICAL_IMAGE_TAG) . && \
+		echo "$(GREEN)✓ Clinical Service construido$(NC)"
 	@echo ""
-	@echo "$(GREEN)=== Desplegando toda la infraestructura ===$(NC)\n"
-	@$(MAKE) deploy-all
+	@echo "$(CYAN)--- Construyendo Genomic Service ---$(NC)"
+	@cd $(GENOMIC_SERVICE_DIR) && \
+		docker build -f Dockerfile -t $(GENOMIC_IMAGE_NAME):$(GENOMIC_IMAGE_TAG) . && \
+		echo "$(GREEN)✓ Genomic Service construido$(NC)"
 	@echo ""
-	@echo "$(GREEN)✓ Proceso completado!$(NC)"
-	@echo "$(CYAN)Usa 'make status-all' para ver el estado de los servicios$(NC)"
+	@echo "$(CYAN)--- Construyendo API Gateway ---$(NC)"
+	@cd $(API_GATEWAY_DIR) && \
+		docker build -f Dockerfile -t $(API_GATEWAY_IMAGE_NAME):$(API_GATEWAY_IMAGE_TAG) . && \
+		echo "$(GREEN)✓ API Gateway construido$(NC)"
+	@echo ""
+	@echo "$(CYAN)--- Construyendo Frontend ---$(NC)"
+	@cd $(FRONTEND_DIR) && \
+		docker build -f Dockerfile -t $(FRONTEND_IMAGE_NAME):$(FRONTEND_IMAGE_TAG) . && \
+		echo "$(GREEN)✓ Frontend construido$(NC)"
+	@echo ""
+	@echo "$(GREEN)✓ Todas las imágenes construidas exitosamente!$(NC)"
 
-deploy-from-scratch: check-k8s ## Despliega todo desde cero: elimina, construye y despliega (alias: fresh-deploy)
-	@echo "$(GREEN)=== Despliegue desde cero en Minikube ===$(NC)\n"
-	@echo "$(YELLOW)Este comando hará lo siguiente:$(NC)"
-	@echo "  1. Verificar/Iniciar Minikube"
-	@echo "  2. Eliminar todos los servicios existentes"
-	@echo "  3. Construir todas las imágenes Docker"
-	@echo "  4. Desplegar todos los servicios"
-	@echo "  5. Esperar a que todo esté listo"
-	@echo "  6. Verificar estado de los pods"
-	@echo "  7. Mostrar el estado final"
-	@echo "  8. Configurar port-forward del frontend"
-	@echo ""
-	@echo "$(CYAN)=== Paso 1: Verificando/Iniciando Minikube ===$(NC)"
+build-all: ## Construye todas las imágenes Docker (detecta automáticamente Minikube o Docker Desktop)
+	@bash -c '\
+		CURRENT_CTX=$$(kubectl config current-context 2>/dev/null || echo ""); \
+		if [ -n "$$CURRENT_CTX" ] && echo "$$CURRENT_CTX" | grep -q "minikube"; then \
+			if command -v minikube >/dev/null 2>&1 && minikube status -p $(MINIKUBE_PROFILE) &>/dev/null; then \
+				echo "$(CYAN)Detectado Minikube, usando build-all-minikube...$(NC)"; \
+				$(MAKE) build-all-minikube; \
+			else \
+				echo "$(YELLOW)Minikube detectado pero no está corriendo, usando Docker estándar...$(NC)"; \
+				$(MAKE) build-all-docker; \
+			fi; \
+		else \
+			echo "$(CYAN)Usando Docker estándar (Docker Desktop u otro)...$(NC)"; \
+			$(MAKE) build-all-docker; \
+		fi'
+
+build-all-if-missing: ## Construye todas las imágenes Docker solo si no existen (detecta automáticamente Minikube o Docker Desktop)
+	@bash -c '\
+		CURRENT_CTX=$$(kubectl config current-context 2>/dev/null || echo ""); \
+		if [ -n "$$CURRENT_CTX" ] && echo "$$CURRENT_CTX" | grep -q "minikube"; then \
+			if command -v minikube >/dev/null 2>&1 && minikube status -p $(MINIKUBE_PROFILE) &>/dev/null; then \
+				echo "$(CYAN)Detectado Minikube, usando build-all-minikube-if-missing...$(NC)"; \
+				$(MAKE) build-all-minikube-if-missing; \
+			else \
+				echo "$(YELLOW)Minikube detectado pero no está corriendo, usando Docker estándar...$(NC)"; \
+				$(MAKE) build-all-docker-if-missing; \
+			fi; \
+		else \
+			echo "$(CYAN)Usando Docker estándar (Docker Desktop u otro)...$(NC)"; \
+			$(MAKE) build-all-docker-if-missing; \
+		fi'
+
+build-all-minikube-if-missing: ## Construye todas las imágenes Docker en Minikube solo si no existen
 	@if ! command -v minikube >/dev/null 2>&1; then \
 		echo "$(RED)Error: Minikube no está instalado$(NC)"; \
 		exit 1; \
@@ -551,16 +717,179 @@ deploy-from-scratch: check-k8s ## Despliega todo desde cero: elimina, construye 
 	@if ! minikube status -p $(MINIKUBE_PROFILE) &>/dev/null; then \
 		echo "$(YELLOW)Minikube no está corriendo. Iniciando...$(NC)"; \
 		minikube start -p $(MINIKUBE_PROFILE); \
-	else \
-		echo "$(GREEN)✓ Minikube está corriendo$(NC)"; \
 	fi
+	@if [ ! -d "$(CLINICAL_SERVICE_DIR)" ]; then \
+		echo "$(RED)Error: No se encuentra el directorio del servicio en $(CLINICAL_SERVICE_DIR)$(NC)"; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(GENOMIC_SERVICE_DIR)" ]; then \
+		echo "$(RED)Error: No se encuentra el directorio del servicio en $(GENOMIC_SERVICE_DIR)$(NC)"; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(API_GATEWAY_DIR)" ]; then \
+		echo "$(RED)Error: No se encuentra el directorio del servicio en $(API_GATEWAY_DIR)$(NC)"; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(FRONTEND_DIR)" ]; then \
+		echo "$(RED)Error: No se encuentra el directorio del servicio en $(FRONTEND_DIR)$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)=== Construyendo imágenes en Minikube (solo si no existen) ===$(NC)\n"
+	@echo "$(YELLOW)Configurando entorno de Docker de Minikube...$(NC)"
+	@bash -c "eval \$$(minikube -p $(MINIKUBE_PROFILE) docker-env) && \
+		echo \"$(CYAN)--- Verificando Clinical Service ---$(NC)\" && \
+		if docker image inspect $(CLINICAL_IMAGE_NAME):$(CLINICAL_IMAGE_TAG) >/dev/null 2>&1; then \
+			echo \"$(YELLOW)  Imagen $(CLINICAL_IMAGE_NAME):$(CLINICAL_IMAGE_TAG) ya existe, omitiendo construcción$(NC)\"; \
+		else \
+			echo \"$(CYAN)  Construyendo Clinical Service...$(NC)\"; \
+			cd $(CLINICAL_SERVICE_DIR) && \
+			docker build -f Dockerfile -t $(CLINICAL_IMAGE_NAME):$(CLINICAL_IMAGE_TAG) . && \
+			echo \"$(GREEN)  ✓ Clinical Service construido$(NC)\"; \
+		fi && \
+		echo \"\" && \
+		echo \"$(CYAN)--- Verificando Genomic Service ---$(NC)\" && \
+		if docker image inspect $(GENOMIC_IMAGE_NAME):$(GENOMIC_IMAGE_TAG) >/dev/null 2>&1; then \
+			echo \"$(YELLOW)  Imagen $(GENOMIC_IMAGE_NAME):$(GENOMIC_IMAGE_TAG) ya existe, omitiendo construcción$(NC)\"; \
+		else \
+			echo \"$(CYAN)  Construyendo Genomic Service...$(NC)\"; \
+			cd $(GENOMIC_SERVICE_DIR) && \
+			docker build -f Dockerfile -t $(GENOMIC_IMAGE_NAME):$(GENOMIC_IMAGE_TAG) . && \
+			echo \"$(GREEN)  ✓ Genomic Service construido$(NC)\"; \
+		fi && \
+		echo \"\" && \
+		echo \"$(CYAN)--- Verificando API Gateway ---$(NC)\" && \
+		if docker image inspect $(API_GATEWAY_IMAGE_NAME):$(API_GATEWAY_IMAGE_TAG) >/dev/null 2>&1; then \
+			echo \"$(YELLOW)  Imagen $(API_GATEWAY_IMAGE_NAME):$(API_GATEWAY_IMAGE_TAG) ya existe, omitiendo construcción$(NC)\"; \
+		else \
+			echo \"$(CYAN)  Construyendo API Gateway...$(NC)\"; \
+			cd $(API_GATEWAY_DIR) && \
+			docker build -f Dockerfile -t $(API_GATEWAY_IMAGE_NAME):$(API_GATEWAY_IMAGE_TAG) . && \
+			echo \"$(GREEN)  ✓ API Gateway construido$(NC)\"; \
+		fi && \
+		echo \"\" && \
+		echo \"$(CYAN)--- Verificando Frontend ---$(NC)\" && \
+		if docker image inspect $(FRONTEND_IMAGE_NAME):$(FRONTEND_IMAGE_TAG) >/dev/null 2>&1; then \
+			echo \"$(YELLOW)  Imagen $(FRONTEND_IMAGE_NAME):$(FRONTEND_IMAGE_TAG) ya existe, omitiendo construcción$(NC)\"; \
+		else \
+			echo \"$(CYAN)  Construyendo Frontend...$(NC)\"; \
+			cd $(FRONTEND_DIR) && \
+			docker build -f Dockerfile -t $(FRONTEND_IMAGE_NAME):$(FRONTEND_IMAGE_TAG) . && \
+			echo \"$(GREEN)  ✓ Frontend construido$(NC)\"; \
+		fi"
+	@echo ""
+	@echo "$(GREEN)✓ Verificación y construcción completada!$(NC)"
+
+build-all-docker-if-missing: ## Construye todas las imágenes Docker solo si no existen (para Docker Desktop u otros)
+	@if [ ! -d "$(CLINICAL_SERVICE_DIR)" ]; then \
+		echo "$(RED)Error: No se encuentra el directorio del servicio en $(CLINICAL_SERVICE_DIR)$(NC)"; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(GENOMIC_SERVICE_DIR)" ]; then \
+		echo "$(RED)Error: No se encuentra el directorio del servicio en $(GENOMIC_SERVICE_DIR)$(NC)"; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(API_GATEWAY_DIR)" ]; then \
+		echo "$(RED)Error: No se encuentra el directorio del servicio en $(API_GATEWAY_DIR)$(NC)"; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(FRONTEND_DIR)" ]; then \
+		echo "$(RED)Error: No se encuentra el directorio del servicio en $(FRONTEND_DIR)$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)=== Construyendo imágenes con Docker (solo si no existen) ===$(NC)\n"
+	@echo "$(CYAN)--- Verificando Clinical Service ---$(NC)"
+	@if docker image inspect $(CLINICAL_IMAGE_NAME):$(CLINICAL_IMAGE_TAG) >/dev/null 2>&1; then \
+		echo "$(YELLOW)  Imagen $(CLINICAL_IMAGE_NAME):$(CLINICAL_IMAGE_TAG) ya existe, omitiendo construcción$(NC)"; \
+	else \
+		echo "$(CYAN)  Construyendo Clinical Service...$(NC)"; \
+		cd $(CLINICAL_SERVICE_DIR) && \
+		docker build -f Dockerfile -t $(CLINICAL_IMAGE_NAME):$(CLINICAL_IMAGE_TAG) . && \
+		echo "$(GREEN)  ✓ Clinical Service construido$(NC)"; \
+	fi
+	@echo ""
+	@echo "$(CYAN)--- Verificando Genomic Service ---$(NC)"
+	@if docker image inspect $(GENOMIC_IMAGE_NAME):$(GENOMIC_IMAGE_TAG) >/dev/null 2>&1; then \
+		echo "$(YELLOW)  Imagen $(GENOMIC_IMAGE_NAME):$(GENOMIC_IMAGE_TAG) ya existe, omitiendo construcción$(NC)"; \
+	else \
+		echo "$(CYAN)  Construyendo Genomic Service...$(NC)"; \
+		cd $(GENOMIC_SERVICE_DIR) && \
+		docker build -f Dockerfile -t $(GENOMIC_IMAGE_NAME):$(GENOMIC_IMAGE_TAG) . && \
+		echo "$(GREEN)  ✓ Genomic Service construido$(NC)"; \
+	fi
+	@echo ""
+	@echo "$(CYAN)--- Verificando API Gateway ---$(NC)"
+	@if docker image inspect $(API_GATEWAY_IMAGE_NAME):$(API_GATEWAY_IMAGE_TAG) >/dev/null 2>&1; then \
+		echo "$(YELLOW)  Imagen $(API_GATEWAY_IMAGE_NAME):$(API_GATEWAY_IMAGE_TAG) ya existe, omitiendo construcción$(NC)"; \
+	else \
+		echo "$(CYAN)  Construyendo API Gateway...$(NC)"; \
+		cd $(API_GATEWAY_DIR) && \
+		docker build -f Dockerfile -t $(API_GATEWAY_IMAGE_NAME):$(API_GATEWAY_IMAGE_TAG) . && \
+		echo "$(GREEN)  ✓ API Gateway construido$(NC)"; \
+	fi
+	@echo ""
+	@echo "$(CYAN)--- Verificando Frontend ---$(NC)"
+	@if docker image inspect $(FRONTEND_IMAGE_NAME):$(FRONTEND_IMAGE_TAG) >/dev/null 2>&1; then \
+		echo "$(YELLOW)  Imagen $(FRONTEND_IMAGE_NAME):$(FRONTEND_IMAGE_TAG) ya existe, omitiendo construcción$(NC)"; \
+	else \
+		echo "$(CYAN)  Construyendo Frontend...$(NC)"; \
+		cd $(FRONTEND_DIR) && \
+		docker build -f Dockerfile -t $(FRONTEND_IMAGE_NAME):$(FRONTEND_IMAGE_TAG) . && \
+		echo "$(GREEN)  ✓ Frontend construido$(NC)"; \
+	fi
+	@echo ""
+	@echo "$(GREEN)✓ Verificación y construcción completada!$(NC)"
+
+build-and-deploy-all: check-k8s ## Construye todas las imágenes y despliega toda la infraestructura
+	@echo "$(GREEN)=== Construyendo imágenes y desplegando infraestructura completa ===$(NC)\n"
+	@$(MAKE) build-all
+	@echo ""
+	@echo "$(GREEN)=== Desplegando toda la infraestructura ===$(NC)\n"
+	@$(MAKE) deploy-all
+	@echo ""
+	@echo "$(GREEN)✓ Proceso completado!$(NC)"
+	@echo "$(CYAN)Usa 'make status-all' para ver el estado de los servicios$(NC)"
+
+deploy-from-scratch: check-k8s ## Despliega todo desde cero: elimina, construye imágenes (solo si no existen) y despliega (alias: fresh-deploy)
+	@echo "$(GREEN)=== Despliegue desde cero ===$(NC)\n"
+	@bash -c '\
+		CURRENT_CTX=$$(kubectl config current-context 2>/dev/null || echo ""); \
+		if [ -n "$$CURRENT_CTX" ] && echo "$$CURRENT_CTX" | grep -q "minikube"; then \
+			K8S_PROVIDER="Minikube"; \
+		else \
+			K8S_PROVIDER="Kubernetes"; \
+		fi; \
+		echo -e "\033[1;33mEste comando hará lo siguiente:\033[0m"; \
+		echo "  1. Verificar conexión al cluster de Kubernetes"; \
+		echo "  2. Eliminar todos los servicios existentes"; \
+		echo "  3. Construir imágenes Docker (solo si no existen)"; \
+		echo "  4. Desplegar todos los servicios"; \
+		echo "  5. Esperar a que todo esté listo"; \
+		echo "  6. Verificar estado de los pods"; \
+		echo "  7. Mostrar el estado final"; \
+		echo "  8. Configurar port-forward del frontend"; \
+		echo ""; \
+		echo -e "\033[0;36mProveedor detectado: $$K8S_PROVIDER\033[0m"; \
+		echo ""'
+	@echo "$(CYAN)=== Paso 1: Verificando conexión al cluster ===$(NC)"
+	@bash -c '\
+		CURRENT_CTX=$$(kubectl config current-context 2>/dev/null || echo ""); \
+		if [ -n "$$CURRENT_CTX" ] && echo "$$CURRENT_CTX" | grep -q "minikube"; then \
+			if command -v minikube >/dev/null 2>&1 && minikube status -p $(MINIKUBE_PROFILE) &>/dev/null; then \
+				echo -e "\033[0;32m✓ Minikube está corriendo\033[0m"; \
+			else \
+				echo -e "\033[1;33mMinikube detectado pero no está corriendo\033[0m"; \
+				echo -e "\033[1;33mNota: Si necesitas Minikube, ejecuta '\''minikube start'\'' manualmente\033[0m"; \
+			fi; \
+		else \
+			echo -e "\033[0;32m✓ Cluster de Kubernetes disponible (\033[0;36m$$CURRENT_CTX\033[0;32m)\033[0m"; \
+		fi'
 	@echo ""
 	@echo "$(CYAN)=== Paso 2: Eliminando servicios existentes ===$(NC)"
 	@$(MAKE) delete-all || echo "$(YELLOW)No hay servicios para eliminar o error al eliminar (continuando...)$(NC)"
 	@echo "$(GREEN)✓ Limpieza completada$(NC)"
 	@echo ""
-	@echo "$(CYAN)=== Paso 3: Construyendo todas las imágenes Docker ===$(NC)"
-	@$(MAKE) build-all-minikube
+	@echo "$(CYAN)=== Paso 3: Construyendo imágenes Docker (solo si no existen) ===$(NC)"
+	@$(MAKE) build-all-if-missing
 	@echo ""
 	@echo "$(CYAN)=== Paso 4: Desplegando todos los servicios ===$(NC)"
 	@$(MAKE) deploy-all
@@ -574,8 +903,8 @@ deploy-from-scratch: check-k8s ## Despliega todo desde cero: elimina, construye 
 		TIMEOUT=300; \
 		ELAPSED=0; \
 		while [ $$ELAPSED -lt $$TIMEOUT ]; do \
-			READY_PODS=$$(kubectl get pods --no-headers 2>/dev/null | grep -E "(clinical-service|api-gateway|frontend)" | grep -c "Running" || echo "0"); \
-			TOTAL_PODS=$$(kubectl get pods --no-headers 2>/dev/null | grep -E "(clinical-service|api-gateway|frontend)" | wc -l || echo "0"); \
+			READY_PODS=$$(kubectl get pods --no-headers 2>/dev/null | grep -E "(clinical-service|genomic-service|api-gateway|frontend)" | grep -c "Running" || echo "0"); \
+			TOTAL_PODS=$$(kubectl get pods --no-headers 2>/dev/null | grep -E "(clinical-service|genomic-service|api-gateway|frontend)" | wc -l || echo "0"); \
 			if [ "$$TOTAL_PODS" -gt 0 ] && [ "$$READY_PODS" -eq "$$TOTAL_PODS" ]; then \
 				echo -e "\033[0;32m✓ Todos los pods están en estado Running ($$READY_PODS/$$TOTAL_PODS)\033[0m"; \
 				break; \
@@ -592,26 +921,29 @@ deploy-from-scratch: check-k8s ## Despliega todo desde cero: elimina, construye 
 	@echo "$(GREEN)✓ Despliegue desde cero completado exitosamente!$(NC)"
 	@echo "$(GREEN)═══════════════════════════════════════════════════════════════$(NC)"
 	@echo ""
-	@echo "$(CYAN)=== Paso 8: Configurando port-forward del frontend ===$(NC)"
-	@echo "$(YELLOW)Iniciando port-forward en segundo plano...$(NC)"
-	@pkill -f "kubectl port-forward.*frontend" 2>/dev/null || true
-	@sleep 2
-	@bash -c '\
-		SVC_PORT=80; \
-		LOCAL_PORT=4200; \
-		echo "$(GREEN)✓ Port-forward configurado: http://localhost:$$LOCAL_PORT -> frontend:$$SVC_PORT$(NC)"; \
-		kubectl port-forward svc/frontend $$LOCAL_PORT:$$SVC_PORT > /dev/null 2>&1 & \
-		echo "$$!" > /tmp/frontend-port-forward.pid; \
-		sleep 2; \
-		if ps -p $$(cat /tmp/frontend-port-forward.pid 2>/dev/null) > /dev/null 2>&1; then \
-			echo "$(GREEN)✓ Port-forward activo en segundo plano (PID: $$(cat /tmp/frontend-port-forward.pid))$(NC)"; \
-		else \
-			echo "$(YELLOW)⚠ Port-forward no se pudo iniciar automáticamente$(NC)"; \
-		fi'
+	@echo "$(CYAN)=== Paso 8: Configurando port-forward de todos los servicios ===$(NC)"
+	@echo "$(YELLOW)Nota: Los port-forwards se pueden iniciar manualmente con el comando:$(NC)"
+	@echo "$(GREEN)  make start-port-forwards$(NC)"
+	@echo ""
+	@echo "$(YELLOW)O ejecuta los siguientes comandos en terminales separadas:$(NC)"
+	@if kubectl get svc frontend >/dev/null 2>&1; then \
+		echo "$(CYAN)  kubectl port-forward svc/frontend 4200:80$(NC)"; \
+	fi
+	@if kubectl get svc api-gateway >/dev/null 2>&1; then \
+		echo "$(CYAN)  kubectl port-forward svc/api-gateway 8080:8080$(NC)"; \
+	fi
+	@if kubectl get svc clinical-service >/dev/null 2>&1; then \
+		echo "$(CYAN)  kubectl port-forward svc/clinical-service 3000:3000$(NC)"; \
+	fi
+	@if kubectl get svc genomic-service >/dev/null 2>&1; then \
+		echo "$(CYAN)  kubectl port-forward svc/genomic-service 8001:8001$(NC)"; \
+	fi
 	@echo ""
 	@echo "$(CYAN)Información de acceso:$(NC)"
 	@echo "  $(GREEN)Frontend:$(NC) http://localhost:4200"
-	@echo "  $(GREEN)API Gateway:$(NC) http://localhost:8080/api"
+	@echo "  $(GREEN)API Gateway:$(NC) http://localhost:8080"
+	@echo "  $(GREEN)Clinical Service:$(NC) http://localhost:3000"
+	@echo "  $(GREEN)Genomic Service:$(NC) http://localhost:8001"
 	@echo ""
 	@echo "$(YELLOW)Credenciales de acceso:$(NC)"
 	@echo "  Usuario: $(GREEN)admin$(NC) / Contraseña: $(GREEN)admin123$(NC)"
@@ -620,7 +952,8 @@ deploy-from-scratch: check-k8s ## Despliega todo desde cero: elimina, construye 
 	@echo "$(CYAN)Comandos útiles:$(NC)"
 	@echo "  $(YELLOW)make status-all$(NC)                      - Ver estado detallado de todos los servicios"
 	@echo "  $(YELLOW)make logs SERVICE=<nombre>$(NC)          - Ver logs de un servicio específico"
-	@echo "  $(YELLOW)pkill -f "kubectl port-forward.*frontend"$(NC)  - Detener port-forward del frontend"
+	@echo "  $(YELLOW)make start-port-forwards$(NC)             - Iniciar todos los port-forwards en segundo plano"
+	@echo "  $(YELLOW)make stop-port-forwards$(NC)              - Detener todos los port-forwards"
 	@echo ""
 
 fresh-deploy: deploy-from-scratch ## Alias para deploy-from-scratch
@@ -667,6 +1000,27 @@ build-minikube-api-gateway: ## Construye la imagen Docker del API Gateway usando
 	@echo "$(GREEN)Imagen construida exitosamente en Minikube!$(NC)"
 	@echo "$(CYAN)La imagen está disponible en el cluster de Minikube$(NC)"
 
+build-minikube-genomic: ## Construye la imagen Docker del Genomic Service usando el entorno de Minikube
+	@if [ ! -d "$(GENOMIC_SERVICE_DIR)" ]; then \
+		echo "$(RED)Error: No se encuentra el directorio del servicio en $(GENOMIC_SERVICE_DIR)$(NC)"; \
+		exit 1; \
+	fi
+	@if ! command -v minikube >/dev/null 2>&1; then \
+		echo "$(RED)Error: Minikube no está instalado$(NC)"; \
+		exit 1; \
+	fi
+	@if ! minikube status -p $(MINIKUBE_PROFILE) &>/dev/null; then \
+		echo "$(YELLOW)Minikube no está corriendo. Iniciando...$(NC)"; \
+		minikube start -p $(MINIKUBE_PROFILE); \
+	fi
+	@echo "$(GREEN)Construyendo imagen $(GENOMIC_IMAGE_NAME):$(GENOMIC_IMAGE_TAG) en Minikube...$(NC)"
+	@echo "$(YELLOW)Configurando entorno de Docker de Minikube...$(NC)"
+	@bash -c "eval \$$(minikube -p $(MINIKUBE_PROFILE) docker-env) && \
+		cd $(GENOMIC_SERVICE_DIR) && \
+		docker build -f Dockerfile -t $(GENOMIC_IMAGE_NAME):$(GENOMIC_IMAGE_TAG) ."
+	@echo "$(GREEN)Imagen construida exitosamente en Minikube!$(NC)"
+	@echo "$(CYAN)La imagen está disponible en el cluster de Minikube$(NC)"
+
 build-minikube-frontend: ## Construye la imagen Docker del Frontend usando el entorno de Minikube
 	@if [ ! -d "$(FRONTEND_DIR)" ]; then \
 		echo "$(RED)Error: No se encuentra el directorio del servicio en $(FRONTEND_DIR)$(NC)"; \
@@ -708,3 +1062,30 @@ clinical-service: ## Muestra información sobre clinical-service
 	@echo "  $(CYAN)kubectl port-forward svc/clinical-mysql 3306:3306$(NC)  - Port-forward MySQL"
 	@echo "  $(CYAN)kubectl exec -it <pod-name> -- /bin/sh$(NC)  - Shell en pod"
 	@echo "  $(CYAN)kubectl describe pod <pod-name>$(NC)  - Detalles del pod"
+
+genomic-service: ## Muestra información sobre genomic-service
+	@echo "$(CYAN)=== Genomic Service ===$(NC)"
+	@echo ""
+	@echo "$(GREEN)Comandos principales:$(NC)"
+	@echo "  $(YELLOW)make deploy SERVICE=genomic-service$(NC)  - Desplegar servicio y MongoDB"
+	@echo "  $(YELLOW)make status SERVICE=genomic-service$(NC)  - Ver estado"
+	@echo "  $(YELLOW)make logs SERVICE=genomic-service$(NC)   - Ver logs"
+	@echo "  $(YELLOW)make port-forward SERVICE=genomic-service$(NC)  - Port-forward (puerto 8001)"
+	@echo ""
+	@echo "$(GREEN)Comandos específicos:$(NC)"
+	@echo "  $(YELLOW)make deploy-genomic$(NC)  - Desplegar con orden correcto (MongoDB primero)"
+	@echo "  $(YELLOW)make status-genomic$(NC)  - Estado detallado (incluye MongoDB)"
+	@echo "  $(YELLOW)make delete-genomic$(NC)   - Eliminar todos los recursos"
+	@echo "  $(YELLOW)make build-minikube-genomic$(NC)  - Construir imagen Docker en Minikube"
+	@echo ""
+	@echo "$(GREEN)Comandos kubectl útiles:$(NC)"
+	@echo "  $(CYAN)kubectl logs -l app=genomic-mongodb -f$(NC)  - Logs de MongoDB"
+	@echo "  $(CYAN)kubectl port-forward svc/genomic-mongodb 27017:27017$(NC)  - Port-forward MongoDB"
+	@echo "  $(CYAN)kubectl exec -it <pod-name> -- /bin/sh$(NC)  - Shell en pod"
+	@echo "  $(CYAN)kubectl describe pod <pod-name>$(NC)  - Detalles del pod"
+	@echo ""
+	@echo "$(GREEN)Endpoints disponibles:$(NC)"
+	@echo "  $(CYAN)Genes:$(NC) http://localhost:8001/genomic/genes"
+	@echo "  $(CYAN)Variantes:$(NC) http://localhost:8001/genomic/genetic-variants"
+	@echo "  $(CYAN)Reportes:$(NC) http://localhost:8001/genomic/patient-variant-reports"
+	@echo "  $(CYAN)Swagger:$(NC) http://localhost:8001/docs/"

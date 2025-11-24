@@ -1,0 +1,25 @@
+meta {
+  name: GetById
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{BASE_URL}}/api/genomic/genetic-variants/:id
+  body: none
+  auth: bearer
+}
+
+params:path {
+  id: 123e4567-e89b-12d3-a456-426614174000
+}
+
+auth:bearer {
+  token: {{BEARER_TOKEN}}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

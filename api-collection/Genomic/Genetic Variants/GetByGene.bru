@@ -1,0 +1,25 @@
+meta {
+  name: GetByGene
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{BASE_URL}}/api/genomic/genetic-variants/gene/:geneId
+  body: none
+  auth: bearer
+}
+
+params:path {
+  geneId: 123e4567-e89b-12d3-a456-426614174000
+}
+
+auth:bearer {
+  token: {{BEARER_TOKEN}}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

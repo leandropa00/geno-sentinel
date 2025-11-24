@@ -1,0 +1,30 @@
+meta {
+  name: Create
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{BASE_URL}}/api/genomic/patient-variant-reports
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{BEARER_TOKEN}}
+}
+
+body:json {
+  {
+    "patientId": "d385856f-6dcc-4e10-9aa4-77c87ee6cb13",
+    "variantId": "123e4567-e89b-12d3-a456-426614174000",
+    "detectionDate": "2024-01-15T10:30:00Z",
+    "alleleFrequency": 0.125
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

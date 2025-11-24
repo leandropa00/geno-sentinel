@@ -4,14 +4,20 @@ kind: Kustomization
 namespace: default
 
 resources:
+  # MongoDB
+  - mongodb-pvc.yaml
+  - mongodb-configmap.yaml
+  - mongodb-secret.yaml
+  - mongodb-service.yaml
+  - mongodb-deployment.yaml
+  
+  # Genomic Service
   - configmap.yaml
   - secret.yaml
-  - deployment.yaml
   - service.yaml
-  - mongodb-deployment.yaml
-  - mongodb-service.yaml
-  - mongodb-pvc.yaml
+  - deployment.yaml
 
 commonLabels:
-  project: geno-sentinel
-  service: genomic
+  app.kubernetes.io/name: genomic-service
+  app.kubernetes.io/part-of: geno-sentinel
+

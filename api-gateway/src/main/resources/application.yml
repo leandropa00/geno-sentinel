@@ -6,6 +6,9 @@ spring:
     name: api-gateway
   cloud:
     gateway:
+      httpclient:
+        connect-timeout: 10000
+        response-timeout: 60s
       routes:
         - id: clinical-service
           uri: http://${CLINICAL_SERVICE_HOST:clinical-service}:${CLINICAL_SERVICE_PORT:3000}
@@ -14,7 +17,7 @@ spring:
           filters:
             - StripPrefix=2
         - id: genomic-service
-          uri: http://${GENOMIC_SERVICE_HOST:genomic-service}:${GENOMIC_SERVICE_PORT:3001}
+          uri: http://${GENOMIC_SERVICE_HOST:genomic-service}:${GENOMIC_SERVICE_PORT:8001}
           predicates:
             - Path=/api/genomic/**
           filters:
